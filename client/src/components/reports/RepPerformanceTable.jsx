@@ -56,7 +56,7 @@ const RepPerformanceTable = ({ teamData }) => {
                                     </span>
                                 </td>
                                 <td className='px-6 py-4 text-right font-bold text-gray-900'>
-                                    ${rep.revenue.toLocaleString()}
+                                    ₹{rep.revenue.toLocaleString()}
                                 </td>
                             </tr>
                         ))}

@@ -17,7 +17,7 @@ const SourceBreakdown = ({ sources }) => {
                             </span>
                             <div className='text-right'>
                                 <span className='font-bold text-gray-900'>
-                                    ${src.revenue.toLocaleString()}
+                                    ₹{src.revenue.toLocaleString()}
                                 </span>
                                 <span className='text-gray-400 text-xs ml-2'>
                                     ({src.conversionRate}% conv.)
