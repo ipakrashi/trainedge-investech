@@ -1,4 +1,4 @@
-import { FiSearch, FiPlus, FiFilter, FiUser } from 'react-icons/fi'
+import { FiSearch, FiPlus, FiFilter, FiUser, FiUpload } from 'react-icons/fi'
 
 const LeadsHeader = ({
     searchQuery,
@@ -8,8 +8,9 @@ const LeadsHeader = ({
     assigneeFilter,
     setAssigneeFilter,
     usersList,
-    isAdmin, // New prop
+    isAdmin,
     onAddClick,
+    onImportClick, // New prop for triggering CSV modal/file picker
 }) => {
     return (
         <div className='flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6'>
@@ -59,7 +60,7 @@ const LeadsHeader = ({
                     </select>
                 </div>
 
-                {/* Assignee Filter - ONLY RENDERS FOR ADMINS */}
+                {/* Assignee Filter - ONLY ADMINS */}
                 {isAdmin && (
                     <div className='relative'>
                         <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -79,6 +80,15 @@ const LeadsHeader = ({
                         </select>
                     </div>
                 )}
+
+                {/* Import CSV Button */}
+                <button
+                    onClick={onImportClick}
+                    className='flex items-center justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap'
+                >
+                    <FiUpload className='mr-2 text-gray-500' />
+                    Import CSV
+                </button>
 
                 {/* Add Button */}
                 <button

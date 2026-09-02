@@ -1,4 +1,9 @@
 import leadModel from '../models/leadModel.js'
+import csv from 'csv-parser'
+import { Readable } from 'stream'
+import userModel from '../models/userModel.js'
+import courseModel from '../models/courseModel.js'
+import asyncHandler from 'express-async-handler'
 
 // @desc    Create a new lead
 // @route   POST /api/leads
@@ -208,4 +213,166 @@ export const deleteLead = async (req, res) => {
         })
     }
 }
-import userModel from '../models/userModel.js'
+
+// @desc    Import Leads from CSV
+// @route   POST /api/leads/import
+// @access  Private
+export const importLeadsCSV = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        res.status(400)
+        throw new Error('Please upload a valid CSV file')
+    }
+
+    const results = []
+    const bufferStream = Readable.from(req.file.buffer)
+
+    bufferStream
+        .pipe(csv())
+        .on('data', (data) => results.push(data))
+        .on('end', async () => {
+            let importedCount = 0
+            let errorsCount = 0
+
+            for (const row of results) {
+                try {
+                    const cleanRow = {}
+                    Object.keys(row).forEach((k) => {
+                        // Strip invisible BOM characters and normalize header keys
+                        const cleanKey = k
+                            .replace(/^\ufeff/, '')
+                            .trim()
+                            .toLowerCase()
+                        cleanRow[cleanKey] = row[k]?.trim()
+                    })
+
+                    // 1. Resolve Assigned User (Flexible fallback)
+                    let assignedUserId = req.user._id
+                    const rawAssignee =
+                        cleanRow['assignedto'] || cleanRow['assignedemail']
+                    if (rawAssignee) {
+                        if (rawAssignee.length === 24) {
+                            assignedUserId = rawAssignee
+                        } else {
+                            const user = await userModel.findOne({
+                                $or: [
+                                    {
+                                        email: {
+                                            $regex: new RegExp(
+                                                `^${rawAssignee}$`,
+                                                'i',
+                                            ),
+                                        },
+                                    },
+                                    {
+                                        firstName: {
+                                            $regex: new RegExp(
+                                                `^${rawAssignee}$`,
+                                                'i',
+                                            ),
+                                        },
+                                    },
+                                ],
+                            })
+                            if (user) assignedUserId = user._id
+                        }
+                    }
+
+                    // 2. Resolve Interested Courses (Checks title, courseTitle, or name)
+                    let courseIds = []
+                    const rawCourses =
+                        cleanRow['interestedcourses'] || cleanRow['coursetitle']
+                    if (rawCourses) {
+                        const items = rawCourses
+                            .split(',')
+                            .map((i) => i.trim())
+                            .filter(Boolean)
+                        for (const item of items) {
+                            const cleanId = item
+                                .replace(/ObjectId\(|\)|['"]/g, '')
+                                .trim()
+                            if (cleanId.length === 24) {
+                                courseIds.push(cleanId)
+                            } else {
+                                const course = await courseModel.findOne({
+                                    $or: [
+                                        {
+                                            title: {
+                                                $regex: new RegExp(
+                                                    `^${item}$`,
+                                                    'i',
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            courseTitle: {
+                                                $regex: new RegExp(
+                                                    `^${item}$`,
+                                                    'i',
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            name: {
+                                                $regex: new RegExp(
+                                                    `^${item}$`,
+                                                    'i',
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                })
+                                if (course) courseIds.push(course._id)
+                            }
+                        }
+                    }
+
+                    // 3. Handle Tags Array
+                    let parsedTags = []
+                    if (cleanRow['tags']) {
+                        parsedTags = cleanRow['tags']
+                            .split(',')
+                            .map((t) => t.trim())
+                            .filter(Boolean)
+                    }
+
+                    const leadData = {
+                        fullName:
+                            cleanRow['fullname'] ||
+                            cleanRow['name'] ||
+                            'Unknown Lead',
+                        email: cleanRow['email'],
+                        phone: cleanRow['phone'],
+                        city: cleanRow['city'],
+                        status: (cleanRow['status'] || 'NEW').toUpperCase(),
+                        source: (cleanRow['source'] || 'OTHER').toUpperCase(),
+                        estimatedValue: Number(cleanRow['estimatedvalue'] || 0),
+                        experienceLevel:
+                            cleanRow['experiencelevel'] || 'BEGINNER',
+                        tags: parsedTags,
+                        assignedTo: assignedUserId,
+                        interestedCourses: courseIds,
+                    }
+
+                    if (cleanRow['nextfollowupdate'])
+                        leadData.nextFollowUpDate = new Date(
+                            cleanRow['nextfollowupdate'],
+                        )
+                    if (cleanRow['createdat'])
+                        leadData.createdAt = new Date(cleanRow['createdat'])
+                    if (cleanRow['updatedat'])
+                        leadData.updatedAt = new Date(cleanRow['updatedat'])
+
+                    await leadModel.create(leadData)
+                    importedCount++
+                } catch (err) {
+                    console.error('Row import error:', err.message)
+                    errorsCount++
+                }
+            }
+
+            res.status(200).json({
+                success: true,
+                message: `Import completed. Successfully imported: ${importedCount}, Errors/Skipped: ${errorsCount}`,
+            })
+        })
+})

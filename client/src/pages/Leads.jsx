@@ -141,9 +141,41 @@ const Leads = () => {
         setIsActivityPanelOpen(false)
     }
 
+    // Add an import trigger handler inside the Leads component:
+    const handleCSVImport = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            setIsLoading(true)
+            const { data } = await api.post('/leads/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            alert(data.message || 'Leads imported successfully!')
+            fetchData() // Refresh list
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to import CSV file.')
+        } finally {
+            setIsLoading(false)
+            // Reset file input value
+            e.target.value = null
+        }
+    }
+
     return (
         <div className='bg-gray-50 min-h-screen py-8'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                {/* Hidden file input */}
+                <input
+                    type='file'
+                    id='csvFileInput'
+                    accept='.csv'
+                    style={{ display: 'none' }}
+                    onChange={handleCSVImport}
+                />
                 <LeadsHeader
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
@@ -154,6 +186,9 @@ const Leads = () => {
                     usersList={usersList}
                     isAdmin={isAdmin}
                     onAddClick={() => handleOpenModal(null)}
+                    onImportClick={() =>
+                        document.getElementById('csvFileInput').click()
+                    }
                 />
                 <LeadsTable
                     leads={filteredLeads}

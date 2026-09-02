@@ -5,13 +5,17 @@ import {
     getLeadById,
     updateLead,
     deleteLead,
+    importLeadsCSV,
 } from '../controllers/leadController.js'
 import { protect, restrictTo } from '../middlewares/authMiddleware.js'
+import multer from 'multer'
 
+const upload = multer({ storage: multer.memoryStorage() })
 const router = express.Router()
 
 router.use(protect)
 
+router.route('/import').post(protect, upload.single('file'), importLeadsCSV)
 router.route('/').get(getLeads).post(createLead)
 router
     .route('/:id')
