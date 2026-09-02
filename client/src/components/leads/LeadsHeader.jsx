@@ -10,7 +10,7 @@ const LeadsHeader = ({
     usersList,
     isAdmin,
     onAddClick,
-    onImportClick, // New prop for triggering CSV modal/file picker
+    onImportClick,
 }) => {
     return (
         <div className='flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6'>
@@ -23,9 +23,10 @@ const LeadsHeader = ({
                 </p>
             </div>
 
-            <div className='flex flex-col sm:flex-row w-full lg:w-auto gap-3 flex-wrap'>
-                {/* Search Bar */}
-                <div className='relative'>
+            {/* Changed flex-wrap to lg:flex-nowrap and reduced gap to gap-2 */}
+            <div className='flex flex-col sm:flex-row w-full lg:w-auto gap-2 flex-wrap lg:flex-nowrap items-center'>
+                {/* Search Bar - Reduced width from w-52 to w-44 */}
+                <div className='relative w-full sm:w-auto'>
                     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                         <FiSearch className='text-gray-400' />
                     </div>
@@ -34,12 +35,12 @@ const LeadsHeader = ({
                         placeholder='Search leads...'
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className='pl-10 pr-4 py-2 w-full sm:w-52 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm'
+                        className='pl-10 pr-4 py-2 w-full sm:w-44 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm'
                     />
                 </div>
 
                 {/* Status Filter */}
-                <div className='relative'>
+                <div className='relative w-full sm:w-auto'>
                     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                         <FiFilter className='text-gray-400' />
                     </div>
@@ -62,7 +63,7 @@ const LeadsHeader = ({
 
                 {/* Assignee Filter - ONLY ADMINS */}
                 {isAdmin && (
-                    <div className='relative'>
+                    <div className='relative w-full sm:w-auto'>
                         <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                             <FiUser className='text-gray-400' />
                         </div>
@@ -84,7 +85,7 @@ const LeadsHeader = ({
                 {/* Import CSV Button */}
                 <button
                     onClick={onImportClick}
-                    className='flex items-center justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap'
+                    className='flex items-center justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap w-full sm:w-auto'
                 >
                     <FiUpload className='mr-2 text-gray-500' />
                     Import CSV
@@ -93,7 +94,7 @@ const LeadsHeader = ({
                 {/* Add Button */}
                 <button
                     onClick={onAddClick}
-                    className='flex items-center justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors whitespace-nowrap'
+                    className='flex items-center justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors whitespace-nowrap w-full sm:w-auto'
                 >
                     <FiPlus className='mr-2' />
                     Add Lead
