@@ -19,8 +19,7 @@ const protect = asyncHandler(async (req, res, next) => {
                 throw new Error('Not Authorized, User Not Found')
             }
 
-            // --- NEW: CONCURRENT LOGIN CHECK ---
-            // If the token version doesn't match the database, a newer login exists
+            // --- CONCURRENT LOGIN CHECK ---
             if (decoded.tokenVersion !== req.user.tokenVersion) {
                 res.status(401)
                 throw new Error(
@@ -28,9 +27,14 @@ const protect = asyncHandler(async (req, res, next) => {
                 )
             }
 
+            // --- NEW: HEARTBEAT TRACKER ---
+            // Update lastLogin on every API call to keep the session alive
+            userModel
+                .updateOne({ _id: req.user._id }, { lastLogin: new Date() })
+                .exec()
+
             next()
         } catch (error) {
-            // Check specifically for our custom token version error message to pass it to the frontend
             if (error.message.includes('Session expired')) {
                 res.status(401)
                 throw new Error(error.message)

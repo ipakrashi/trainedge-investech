@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 const addUser = asyncHandler(async (req, res) => {
+    // ... [No changes to addUser] ...
     const {
         image,
         firstName,
@@ -72,15 +73,27 @@ const loginUser = asyncHandler(async (req, res) => {
         .populate('role')
 
     if (user && (await bcrypt.compare(password, user.password))) {
-        // --- NEW: INCREMENT TOKEN VERSION ON EVERY LOGIN ---
+        // --- NEW: STRICT CONCURRENCY BLOCKER USING lastLogin ---
+        const SESSION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
+        if (
+            user.lastLogin &&
+            Date.now() - user.lastLogin.getTime() < SESSION_TIMEOUT_MS
+        ) {
+            res.status(403)
+            throw new Error(
+                'An active session exists on another device. Please log out there, or wait 15 minutes for it to expire.',
+            )
+        }
+
         user.tokenVersion = (user.tokenVersion || 0) + 1
+        user.lastLogin = new Date() // Reset heartbeat for new login
         await user.save()
 
         const token = jwt.sign(
             {
                 userId: user._id,
                 role: user.role.name,
-                tokenVersion: user.tokenVersion, // --- NEW: EMBED VERSION IN TOKEN ---
+                tokenVersion: user.tokenVersion,
             },
             process.env.JWT_SECRET,
             { expiresIn: '1d' },
@@ -107,6 +120,20 @@ const loginUser = asyncHandler(async (req, res) => {
 })
 
 const logoutUser = asyncHandler(async (req, res) => {
+    // --- NEW: CLEAR HEARTBEAT ON LOGOUT ---
+    const token = req.cookies.jwt
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET)
+            // Set lastLogin to the past so they can immediately log in elsewhere
+            await userModel.findByIdAndUpdate(decoded.userId || decoded.id, {
+                lastLogin: new Date(0),
+            })
+        } catch (error) {
+            // Ignore token verification errors during logout
+        }
+    }
+
     res.cookie('jwt', '', {
         httpOnly: true,
         expires: new Date(0),
@@ -116,6 +143,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 })
 
 const editUser = asyncHandler(async (req, res) => {
+    // ... [No changes to editUser] ...
     if (
         req.user.role !== 'admin' &&
         req.user._id.toString() !== req.params.id
@@ -157,6 +185,7 @@ const editUser = asyncHandler(async (req, res) => {
 })
 
 const deleteUser = asyncHandler(async (req, res) => {
+    // ... [No changes to deleteUser] ...
     const user = await userModel.findById(req.params.id)
 
     if (user) {
