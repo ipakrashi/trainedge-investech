@@ -6,11 +6,9 @@ import LeadModal from '../components/leads/LeadModal'
 import LeadActivityPanel from '../components/leads/LeadActivityPanel'
 
 const Leads = () => {
-    // 1. Get user info safely from localStorage
     const userInfoString = localStorage.getItem('userInfo')
     const userInfo = userInfoString ? JSON.parse(userInfoString) : null
 
-    // 2. Check Admin status
     const roleName = (
         userInfo?.role?.name ||
         userInfo?.role ||
@@ -36,16 +34,12 @@ const Leads = () => {
     const fetchData = async () => {
         try {
             setIsLoading(true)
-
-            // Fetch Leads
             const leadsRes = await api.get('/leads')
             setLeads(leadsRes.data.data || [])
 
-            // Fetch Users (Only if Admin)
             if (isAdmin) {
                 try {
                     const usersRes = await api.get('/users')
-                    // Extract the array properly from the response envelope
                     const fetchedUsers = usersRes.data?.data || usersRes.data
                     setUsersList(
                         Array.isArray(fetchedUsers) ? fetchedUsers : [],
@@ -159,21 +153,22 @@ const Leads = () => {
 
     if (isLoading)
         return (
-            <div className='flex items-center justify-center h-[calc(100vh-200px)]'>
+            <div className='flex items-center justify-center h-[calc(100vh-64px)]'>
                 <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
             </div>
         )
 
     if (error)
         return (
-            <div className='text-center text-red-600 mt-10 p-4 bg-red-50 rounded-lg'>
+            <div className='text-center text-red-600 mt-10 p-4 bg-red-50 rounded-lg max-w-7xl mx-auto'>
                 {error}
             </div>
         )
 
     return (
-        <div className='bg-gray-50 min-h-screen py-8'>
-            <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        // Flexbox Wrapper: Locks to exact screen height beneath Navbar and hides outer scroll
+        <div className='bg-gray-50 h-[calc(100vh-64px)] overflow-hidden flex flex-col py-6'>
+            <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex flex-col min-h-0'>
                 <input
                     type='file'
                     id='csvFileInput'
@@ -181,33 +176,42 @@ const Leads = () => {
                     style={{ display: 'none' }}
                     onChange={handleCSVImport}
                 />
-                <LeadsHeader
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    statusFilter={statusFilter}
-                    setStatusFilter={setStatusFilter}
-                    assigneeFilter={assigneeFilter}
-                    setAssigneeFilter={setAssigneeFilter}
-                    usersList={usersList}
-                    isAdmin={isAdmin}
-                    onAddClick={() => handleOpenModal(null)}
-                    onImportClick={() =>
-                        document.getElementById('csvFileInput').click()
-                    }
-                />
-                <LeadsTable
-                    leads={filteredLeads}
-                    onEditClick={handleOpenModal}
-                    onDeleteClick={handleDeleteLead}
-                    onViewActivityClick={handleOpenActivityPanel}
-                    isAdmin={isAdmin}
-                />
+
+                {/* shrink-0 prevents the header from being squished by the table */}
+                <div className='shrink-0'>
+                    <LeadsHeader
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        statusFilter={statusFilter}
+                        setStatusFilter={setStatusFilter}
+                        assigneeFilter={assigneeFilter}
+                        setAssigneeFilter={setAssigneeFilter}
+                        usersList={usersList}
+                        isAdmin={isAdmin}
+                        onAddClick={() => handleOpenModal(null)}
+                        onImportClick={() =>
+                            document.getElementById('csvFileInput').click()
+                        }
+                    />
+                </div>
+
+                {/* flex-1 passes the remaining dynamic space down to the table */}
+                <div className='flex-1 min-h-0 pb-4'>
+                    <LeadsTable
+                        leads={filteredLeads}
+                        onEditClick={handleOpenModal}
+                        onDeleteClick={handleDeleteLead}
+                        onViewActivityClick={handleOpenActivityPanel}
+                        isAdmin={isAdmin}
+                    />
+                </div>
+
                 <LeadModal
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
                     onSubmit={handleSaveLead}
                     initialData={editingLead}
-                    currentUser={userInfo} // CRITICAL: This was missing, now passed properly
+                    currentUser={userInfo}
                 />
                 <LeadActivityPanel
                     isOpen={isActivityPanelOpen}

@@ -8,11 +8,13 @@ const LeadsTable = ({
     isAdmin,
 }) => {
     return (
-        <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-            <div className='overflow-x-auto'>
+        // h-full makes the container stretch to fill the parent's flex-1 space
+        <div className='bg-white rounded-xl shadow-sm border border-gray-100 h-[calc(100vh-176px)] flex flex-col overflow-hidden'>
+            {/* overflow-auto flex-1 keeps scrolling internal to the table body */}
+            <div className='overflow-auto flex-1'>
                 <table className='w-full text-left border-collapse'>
-                    <thead>
-                        <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100'>
+                    <thead className='sticky top-0 z-10 bg-gray-50 shadow-sm'>
+                        <tr className='text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100'>
                             <th className='px-6 py-4 font-medium'>Lead Info</th>
                             <th className='px-6 py-4 font-medium'>Status</th>
                             <th className='px-6 py-4 font-medium'>Source</th>
