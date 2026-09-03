@@ -10,6 +10,8 @@ import {
     FiBook,
     FiShield,
     FiTarget, // Added icon for Sources
+    FiLayers, // Added icon for Sources
+    FiTrendingUp, // Added icon for Sources
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -118,6 +120,24 @@ const Navbar = () => {
                                             }
                                         >
                                             <FiTarget /> Manage Sources
+                                        </Link>
+                                        <Link
+                                            to='/admin/statuses'
+                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                            onClick={() =>
+                                                setIsAdminOpen(false)
+                                            }
+                                        >
+                                            <FiLayers /> Manage Statuses
+                                        </Link>
+                                        <Link
+                                            to='/admin/experiences'
+                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                            onClick={() =>
+                                                setIsAdminOpen(false)
+                                            }
+                                        >
+                                            <FiTrendingUp /> Manage Experiences
                                         </Link>
                                     </div>
                                 )}

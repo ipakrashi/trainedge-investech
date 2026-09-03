@@ -50,7 +50,6 @@ const addUser = asyncHandler(async (req, res) => {
 })
 
 const getUsers = asyncHandler(async (req, res) => {
-    // Populate the role field to return the full role document
     const users = await userModel.find({}).populate('role')
     if (users) {
         res.status(200).json(users)
@@ -67,15 +66,22 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new Error('Please provide email and password')
     }
 
-    // Populate role during login so token/session has access to role name
     const user = await userModel
         .findOne({ email })
         .select('+password')
         .populate('role')
 
     if (user && (await bcrypt.compare(password, user.password))) {
+        // --- NEW: INCREMENT TOKEN VERSION ON EVERY LOGIN ---
+        user.tokenVersion = (user.tokenVersion || 0) + 1
+        await user.save()
+
         const token = jwt.sign(
-            { userId: user._id, role: user.role.name }, // Pass role name string into token payload
+            {
+                userId: user._id,
+                role: user.role.name,
+                tokenVersion: user.tokenVersion, // --- NEW: EMBED VERSION IN TOKEN ---
+            },
             process.env.JWT_SECRET,
             { expiresIn: '1d' },
         )
@@ -92,7 +98,7 @@ const loginUser = asyncHandler(async (req, res) => {
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
-            role: user.role.name, // Return role name string to client storage
+            role: user.role.name,
         })
     } else {
         res.status(401)

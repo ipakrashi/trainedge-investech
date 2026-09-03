@@ -138,7 +138,7 @@ export const getLeadById = async (req, res) => {
     }
 }
 
-// @desc    Update a lead
+// @desc    Update lead
 // @route   PUT /api/leads/:id
 // @access  Private
 export const updateLead = async (req, res) => {
@@ -146,45 +146,45 @@ export const updateLead = async (req, res) => {
         let lead = await leadModel.findById(req.params.id)
 
         if (!lead) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'Lead not found' })
+            return res.status(404).json({
+                success: false,
+                message: 'Lead not found',
+            })
         }
 
+        // 1. Populate the role reference to read the string value
+        await req.user.populate('role')
+
+        // 2. Extract the role string to properly identify the admin
+        const roleStr =
+            req.user.role?.name || req.user.role?.roleName || req.user.role
+        const isAdmin =
+            typeof roleStr === 'string' && roleStr.toLowerCase() === 'admin'
+
+        // 3. Ensure user is either the owner OR an admin
         if (
-            req.user.role !== 'admin' &&
-            lead.assignedTo.toString() !== req.user._id.toString()
+            lead.assignedTo?.toString() !== req.user._id.toString() &&
+            !isAdmin
         ) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to update this lead',
+                message:
+                    'Not authorized to update this lead. It belongs to another user.',
             })
-        }
-
-        // Prevent non-admins from changing the assigned user or lead score
-        const updates = { ...req.body }
-        if (req.user.role !== 'admin') {
-            delete updates.assignedTo
-            delete updates.leadScore
         }
 
         lead = await leadModel
-            .findByIdAndUpdate(req.params.id, updates, {
+            .findByIdAndUpdate(req.params.id, req.body, {
                 new: true,
                 runValidators: true,
             })
-            .populate('interestedCourses', 'courseTitle category')
+            .populate('assignedTo', 'firstName lastName email')
 
-        res.status(200).json({ success: true, data: lead })
+        res.status(200).json({
+            success: true,
+            data: lead,
+        })
     } catch (error) {
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(
-                (val) => val.message,
-            )
-            return res
-                .status(400)
-                .json({ success: false, message: messages.join(', ') })
-        }
         res.status(500).json({
             success: false,
             message: 'Server Error',
@@ -192,7 +192,6 @@ export const updateLead = async (req, res) => {
         })
     }
 }
-
 // @desc    Delete a lead
 // @route   DELETE /api/leads/:id
 // @access  Private (Admin Only)

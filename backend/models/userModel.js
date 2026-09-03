@@ -41,6 +41,10 @@ const userSchema = mongoose.Schema(
         phone: { type: String, trim: true },
         isActive: { type: Boolean, default: true },
         lastLogin: { type: Date },
+        tokenVersion: {
+            type: Number,
+            default: 0,
+        },
     },
     {
         timestamps: true,

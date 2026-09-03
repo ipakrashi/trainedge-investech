@@ -11,6 +11,8 @@ import UserManagement from './pages/admin/UserManagement'
 import CourseManagement from './pages/admin/CourseManagement'
 import RoleManagement from './pages/admin/RoleManagement'
 import ManageSources from './pages/admin/ManageSources'
+import ManageStatuses from './pages/admin/ManageStatuses'
+import ManageExperiences from './pages/admin/ManageExperiences'
 
 const App = () => {
     return (
@@ -46,6 +48,14 @@ const App = () => {
                                 element={<ManageSources />}
                             />
                         </Route>
+                        <Route
+                            path='/admin/statuses'
+                            element={<ManageStatuses />}
+                        />
+                        <Route
+                            path='/admin/experiences'
+                            element={<ManageExperiences />}
+                        />
                     </Route>
                 </Route>
             </Routes>

@@ -3,16 +3,12 @@ import asyncHandler from 'express-async-handler'
 import userModel from '../models/userModel.js'
 
 const protect = asyncHandler(async (req, res, next) => {
-    let token
+    let token = req.cookies.jwt
 
-    // READ THE JWT FROM COOKIE
-    token = req.cookies.jwt
     if (token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-            // CRITICAL CHANGE: .populate('role') fetches the Role document
-            // instead of just leaving an ObjectId string.
             req.user = await userModel
                 .findById(decoded.userId || decoded.id)
                 .select('-password')
@@ -23,8 +19,23 @@ const protect = asyncHandler(async (req, res, next) => {
                 throw new Error('Not Authorized, User Not Found')
             }
 
+            // --- NEW: CONCURRENT LOGIN CHECK ---
+            // If the token version doesn't match the database, a newer login exists
+            if (decoded.tokenVersion !== req.user.tokenVersion) {
+                res.status(401)
+                throw new Error(
+                    'Session expired. Your account was accessed from another device.',
+                )
+            }
+
             next()
         } catch (error) {
+            // Check specifically for our custom token version error message to pass it to the frontend
+            if (error.message.includes('Session expired')) {
+                res.status(401)
+                throw new Error(error.message)
+            }
+
             res.status(401)
             throw new Error('Not Authorized, Invalid Token')
         }
@@ -36,7 +47,6 @@ const protect = asyncHandler(async (req, res, next) => {
 
 // ADMIN MIDDLEWARE
 const admin = (req, res, next) => {
-    // Check if the user exists and the populated role's name is 'admin'
     const userRoleName = req.user?.role?.name?.toLowerCase()
 
     if (req.user && req.user.role && userRoleName === 'admin') {
@@ -47,10 +57,9 @@ const admin = (req, res, next) => {
     }
 }
 
-// RestrictTo Middleware (Ensures the user has the correct role)
+// RestrictTo Middleware
 const restrictTo = (...roles) => {
     return (req, res, next) => {
-        // Extract the role name from the populated role document safely
         const userRoleName = req.user?.role?.name?.toLowerCase()
         const allowedRoles = roles.map((r) => r.toLowerCase())
 
@@ -65,7 +74,6 @@ const restrictTo = (...roles) => {
             })
         }
 
-        // If the user's role name is in the allowed roles array, move to the controller
         next()
     }
 }

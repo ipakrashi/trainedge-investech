@@ -2,70 +2,36 @@ import { useState, useEffect } from 'react'
 import api from '../api/axios'
 import PipelineBoard from '../components/pipeline/PipelineBoard'
 
-const STAGES = [
-    { id: 'NEW', title: 'New', color: 'border-blue-500', bg: 'bg-blue-50' },
-    {
-        id: 'CONTACTED',
-        title: 'Contacted',
-        color: 'border-yellow-500',
-        bg: 'bg-yellow-50',
-    },
-    {
-        id: 'QUALIFIED',
-        title: 'Qualified',
-        color: 'border-purple-500',
-        bg: 'bg-purple-50',
-    },
-    {
-        id: 'DEMO_SCHEDULED',
-        title: 'Demo Scheduled',
-        color: 'border-orange-500',
-        bg: 'bg-orange-50',
-    },
-    {
-        id: 'DEMO_ATTENDED',
-        title: 'Demo Attended',
-        color: 'border-teal-500',
-        bg: 'bg-teal-50',
-    },
-    {
-        id: 'ENROLLED',
-        title: 'Enrolled (Won)',
-        color: 'border-green-500',
-        bg: 'bg-green-50',
-    },
-    { id: 'LOST', title: 'Lost', color: 'border-red-500', bg: 'bg-red-50' },
-    { id: 'JUNK', title: 'Junk', color: 'border-gray-400', bg: 'bg-gray-200' },
-]
-
 const Pipeline = () => {
     const [leads, setLeads] = useState([])
+    const [stages, setStages] = useState([]) // Dynamic Stages State
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        const fetchPipelineLeads = async () => {
+        const fetchPipelineData = async () => {
             try {
-                const response = await api.get('/leads?limit=500')
+                // Fetch both Leads and Statuses concurrently
+                const [leadsRes, statusesRes] = await Promise.all([
+                    api.get('/leads?limit=500'),
+                    api.get('/statuses'),
+                ])
 
-                // Removed the filter entirely so both LOST and JUNK render on the board
-                setLeads(response.data.data || [])
+                setLeads(leadsRes.data.data || [])
+                setStages(statusesRes.data.data || [])
             } catch (err) {
-                console.error('Failed to fetch pipeline:', err)
+                console.error('Failed to fetch pipeline data:', err)
             } finally {
                 setIsLoading(false)
             }
         }
 
-        fetchPipelineLeads()
+        fetchPipelineData()
     }, [])
 
     const handleDragStart = (e, leadId) => {
         e.dataTransfer.setData('leadId', leadId)
     }
-
-    const handleDragOver = (e) => {
-        e.preventDefault()
-    }
+    const handleDragOver = (e) => e.preventDefault()
 
     const handleDrop = async (e, targetStatus) => {
         e.preventDefault()
@@ -104,9 +70,8 @@ const Pipeline = () => {
                         Drag and drop leads to update their status.
                     </p>
                 </div>
-
                 <PipelineBoard
-                    stages={STAGES}
+                    stages={stages}
                     leads={leads}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}

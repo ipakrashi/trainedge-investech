@@ -7,9 +7,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
         email: '',
         phone: '',
         city: '',
-        source: '', // We will default this dynamically or leave blank
-        status: 'NEW',
-        experienceLevel: 'BEGINNER',
+        source: '',
+        status: '',
+        experienceLevel: '',
         estimatedValue: 0,
         interestedCourses: [],
         nextFollowUpDate: '',
@@ -18,28 +18,48 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
 
     const [formData, setFormData] = useState(defaultFormState)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Dynamic Dropdown States
     const [availableCourses, setAvailableCourses] = useState([])
-    const [availableSources, setAvailableSources] = useState([]) // New state
+    const [availableSources, setAvailableSources] = useState([])
+    const [availableStatuses, setAvailableStatuses] = useState([])
+    const [availableExperiences, setAvailableExperiences] = useState([])
 
     useEffect(() => {
         const fetchDropdownData = async () => {
             try {
-                // Fetch both datasets concurrently
-                const [coursesRes, sourcesRes] = await Promise.all([
-                    api.get('/courses'),
-                    api.get('/sources'),
-                ])
+                // Fetch all 4 datasets concurrently
+                const [coursesRes, sourcesRes, statusesRes, expRes] =
+                    await Promise.all([
+                        api.get('/courses'),
+                        api.get('/sources'),
+                        api.get('/statuses'),
+                        api.get('/experiences'),
+                    ])
 
                 setAvailableCourses(coursesRes.data.data || [])
-
                 const fetchedSources = sourcesRes.data.data || []
-                setAvailableSources(fetchedSources)
+                const fetchedStatuses = statusesRes.data.data || []
+                const fetchedExps = expRes.data.data || []
 
-                // If it's a new form, set the default source to the first active one
-                if (!initialData && fetchedSources.length > 0) {
+                setAvailableSources(fetchedSources)
+                setAvailableStatuses(fetchedStatuses)
+                setAvailableExperiences(fetchedExps)
+
+                // Set defaults for new leads
+                if (!initialData) {
                     setFormData((prev) => ({
                         ...prev,
-                        source: fetchedSources[0].name,
+                        source:
+                            fetchedSources.length > 0
+                                ? fetchedSources[0].name
+                                : '',
+                        status:
+                            fetchedStatuses.length > 0
+                                ? fetchedStatuses[0].name
+                                : '',
+                        experienceLevel:
+                            fetchedExps.length > 0 ? fetchedExps[0].name : '',
                     }))
                 }
             } catch (error) {
@@ -47,9 +67,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
             }
         }
 
-        if (isOpen) {
-            fetchDropdownData()
-        }
+        if (isOpen) fetchDropdownData()
     }, [isOpen, initialData])
 
     useEffect(() => {
@@ -66,17 +84,17 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                 lostReason: initialData.lostReason || '',
             })
         } else {
-            // Keep the dynamically fetched default source if it exists
             setFormData((prev) => ({
                 ...defaultFormState,
                 source: prev.source,
+                status: prev.status,
+                experienceLevel: prev.experienceLevel,
             }))
         }
     }, [initialData, isOpen])
 
     const handleChange = (e) => {
         const { name, value, type, multiple, selectedOptions } = e.target
-
         if (multiple) {
             const values = Array.from(selectedOptions, (option) => option.value)
             setFormData((prev) => ({ ...prev, [name]: values }))
@@ -91,12 +109,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         setIsSubmitting(true)
-
         const payload = { ...formData }
-
         if (!payload.nextFollowUpDate) delete payload.nextFollowUpDate
         if (payload.status !== 'LOST') payload.lostReason = ''
-
         await onSubmit(payload)
         setIsSubmitting(false)
     }
@@ -106,7 +121,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     return (
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6'>
             <div className='bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-full overflow-hidden'>
-                {/* Fixed Header */}
                 <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0'>
                     <h2 className='text-xl font-bold text-gray-800'>
                         {initialData ? 'Edit Lead' : 'Add New Lead'}
@@ -123,10 +137,8 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                     onSubmit={handleSubmit}
                     className='flex flex-col flex-1 overflow-hidden'
                 >
-                    {/* Scrollable Form Body */}
                     <div className='p-6 overflow-y-auto flex-1'>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                            {/* ... [Keep fullName, phone, email, city inputs exactly the same] ... */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Full Name *
@@ -178,7 +190,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 />
                             </div>
 
-                            {/* DYNAMIC SOURCE DROPDOWN */}
+                            {/* DYNAMIC SOURCE */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Source
@@ -194,17 +206,15 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                             Loading sources...
                                         </option>
                                     )}
-                                    {availableSources.map((sourceOption) => (
-                                        <option
-                                            key={sourceOption._id}
-                                            value={sourceOption.name}
-                                        >
-                                            {sourceOption.label}
+                                    {availableSources.map((s) => (
+                                        <option key={s._id} value={s.name}>
+                                            {s.label}
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
+                            {/* DYNAMIC STATUS */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Status
@@ -215,18 +225,16 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     onChange={handleChange}
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
                                 >
-                                    <option value='NEW'>New</option>
-                                    <option value='CONTACTED'>Contacted</option>
-                                    <option value='QUALIFIED'>Qualified</option>
-                                    <option value='DEMO_SCHEDULED'>
-                                        Demo Scheduled
-                                    </option>
-                                    <option value='DEMO_ATTENDED'>
-                                        Demo Attended
-                                    </option>
-                                    <option value='ENROLLED'>Enrolled</option>
-                                    <option value='LOST'>Lost</option>
-                                    <option value='JUNK'>Junk</option>
+                                    {availableStatuses.length === 0 && (
+                                        <option value=''>
+                                            Loading statuses...
+                                        </option>
+                                    )}
+                                    {availableStatuses.map((s) => (
+                                        <option key={s._id} value={s.name}>
+                                            {s.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -247,6 +255,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 </div>
                             )}
 
+                            {/* DYNAMIC EXPERIENCE */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Experience Level
@@ -257,13 +266,16 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     onChange={handleChange}
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
                                 >
-                                    <option value='BEGINNER'>Beginner</option>
-                                    <option value='INTERMEDIATE'>
-                                        Intermediate
-                                    </option>
-                                    <option value='ACTIVE_TRADER'>
-                                        Active Trader
-                                    </option>
+                                    {availableExperiences.length === 0 && (
+                                        <option value=''>
+                                            Loading experiences...
+                                        </option>
+                                    )}
+                                    {availableExperiences.map((e) => (
+                                        <option key={e._id} value={e.name}>
+                                            {e.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -279,7 +291,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Estimated Value (₹)
@@ -322,7 +333,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                         </div>
                     </div>
 
-                    {/* Fixed Footer */}
                     <div className='px-6 py-4 flex justify-end gap-3 border-t border-gray-100 bg-gray-50 shrink-0'>
                         <button
                             type='button'

@@ -4,8 +4,9 @@ const PipelineBoard = ({ stages, leads, onDragStart, onDragOver, onDrop }) => {
     return (
         <div className='flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-200px)] snap-x custom-scrollbar'>
             {stages.map((stage) => {
+                // Use stage.name to match the DB Schema
                 const stageLeads = leads.filter(
-                    (lead) => lead.status === stage.id,
+                    (lead) => lead.status === stage.name,
                 )
                 const stageValue = stageLeads.reduce(
                     (sum, lead) => sum + (lead.estimatedValue || 0),
@@ -14,30 +15,30 @@ const PipelineBoard = ({ stages, leads, onDragStart, onDragOver, onDrop }) => {
 
                 return (
                     <div
-                        key={stage.id}
+                        key={stage._id}
                         className={`flex-shrink-0 w-80 flex flex-col rounded-xl snap-center ${
-                            stage.id === 'LOST'
+                            stage.name === 'LOST'
                                 ? 'bg-red-50/40 opacity-95'
-                                : stage.id === 'JUNK'
+                                : stage.name === 'JUNK'
                                   ? 'bg-gray-200/50 opacity-75 grayscale-[0.3]'
                                   : 'bg-gray-100/50'
                         }`}
-                        // Disable drag-and-drop actions ONLY for the LOST column
                         onDragOver={
-                            stage.id === 'LOST' ? undefined : onDragOver
+                            stage.name === 'LOST' ? undefined : onDragOver
                         }
                         onDrop={
-                            stage.id === 'LOST'
+                            stage.name === 'LOST'
                                 ? undefined
-                                : (e) => onDrop(e, stage.id)
+                                : (e) => onDrop(e, stage.name)
                         }
                     >
+                        {/* Dynamic Colors Applied Here */}
                         <div
-                            className={`p-4 border-t-4 ${stage.color} ${stage.bg} rounded-t-xl`}
+                            className={`p-4 border-t-4 ${stage.colorClass || 'border-gray-500'} ${stage.bgClass || 'bg-gray-50'} rounded-t-xl`}
                         >
                             <div className='flex justify-between items-center mb-1'>
                                 <h3 className='font-bold text-gray-800 text-sm uppercase tracking-wider'>
-                                    {stage.title}
+                                    {stage.label}
                                 </h3>
                                 <span className='bg-white px-2 py-0.5 rounded-full text-xs font-semibold text-gray-600 shadow-sm'>
                                     {stageLeads.length}

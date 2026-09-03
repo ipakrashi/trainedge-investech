@@ -8,6 +8,8 @@ import courseRoutes from './routes/courseRoutes.js'
 import leadActivityRoutes from './routes/leadActivityRoutes.js'
 import roleRoutes from './routes/roleRoutes.js'
 import sourceRoutes from './routes/sourceRoutes.js'
+import statusRoutes from './routes/statusRoutes.js'
+import experienceRoutes from './routes/experienceRoutes.js'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -34,6 +36,8 @@ app.use('/api/courses', courseRoutes)
 app.use('/api/lead-activities', leadActivityRoutes)
 app.use('/api/roles', roleRoutes)
 app.use('/api/sources', sourceRoutes)
+app.use('/api/statuses', statusRoutes)
+app.use('/api/experiences', experienceRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {
