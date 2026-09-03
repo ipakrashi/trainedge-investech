@@ -20,10 +20,11 @@ const UserManagement = () => {
     const fetchUsers = async () => {
         try {
             setIsLoading(true)
-            const res = await api.get('/users/getUsers')
-            setUsers(res.data || [])
-        } catch (err) {
-            console.error('Failed to fetch users:', err)
+            const res = await api.get('/users')
+            const fetchedUsers = res.data?.data || res.data
+            setUsers(Array.isArray(fetchedUsers) ? fetchedUsers : [])
+        } catch (error) {
+            console.error('Failed to fetch users:', error)
         } finally {
             setIsLoading(false)
         }
@@ -33,17 +34,24 @@ const UserManagement = () => {
         try {
             setIsLoading(true)
             const [usersResult, rolesResult] = await Promise.allSettled([
-                api.get('/users/getUsers'),
+                api.get('/users'), // FIXED: Removed /getUsers
                 api.get('/roles'),
             ])
 
             if (usersResult.status === 'fulfilled') {
-                setUsers(usersResult.value.data || [])
+                // FIXED: Added safe array extraction here too
+                const fetchedUsers =
+                    usersResult.value.data?.data || usersResult.value.data
+                setUsers(Array.isArray(fetchedUsers) ? fetchedUsers : [])
             }
 
             if (rolesResult.status === 'fulfilled') {
-                // Store the full role objects ({ _id, name }) so the dropdown maps correctly
-                setAvailableRoles(rolesResult.value.data || [])
+                // Safely extract roles array
+                const fetchedRoles =
+                    rolesResult.value.data?.data || rolesResult.value.data
+                setAvailableRoles(
+                    Array.isArray(fetchedRoles) ? fetchedRoles : [],
+                )
             }
         } catch (err) {
             console.error('Failed to load admin data:', err)
