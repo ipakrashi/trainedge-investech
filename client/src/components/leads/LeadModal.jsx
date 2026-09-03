@@ -1,79 +1,96 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/axios.js'
 
-const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
-    const defaultFormState = {
-        fullName: '',
-        email: '',
-        phone: '',
-        city: '',
-        source: '',
-        status: '',
-        experienceLevel: '',
-        estimatedValue: 0,
-        interestedCourses: [],
-        nextFollowUpDate: '',
-        lostReason: '',
-    }
+const defaultFormState = {
+    fullName: '',
+    email: '',
+    phone: '',
+    city: '',
+    source: '',
+    status: '',
+    experienceLevel: '',
+    estimatedValue: 0,
+    interestedCourses: [],
+    assignedTo: '',
+    nextFollowUpDate: '',
+    lostReason: '',
+}
 
+const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
     const [formData, setFormData] = useState(defaultFormState)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Dynamic Dropdown States
     const [availableCourses, setAvailableCourses] = useState([])
     const [availableSources, setAvailableSources] = useState([])
     const [availableStatuses, setAvailableStatuses] = useState([])
     const [availableExperiences, setAvailableExperiences] = useState([])
+    const [availableUsers, setAvailableUsers] = useState([])
+
+    // Determine Admin status
+    const roleName = (
+        currentUser?.role?.name ||
+        currentUser?.role ||
+        ''
+    ).toLowerCase()
+    const isAdmin = roleName === 'admin'
 
     useEffect(() => {
         const fetchDropdownData = async () => {
             try {
-                // Fetch all 4 datasets concurrently
-                const [coursesRes, sourcesRes, statusesRes, expRes] =
-                    await Promise.all([
-                        api.get('/courses'),
-                        api.get('/sources'),
-                        api.get('/statuses'),
-                        api.get('/experiences'),
-                    ])
+                const requests = [
+                    api.get('/courses'),
+                    api.get('/sources'),
+                    api.get('/statuses'),
+                    api.get('/experiences'),
+                ]
+                if (isAdmin) {
+                    requests.push(api.get('/users'))
+                }
 
-                setAvailableCourses(coursesRes.data.data || [])
-                const fetchedSources = sourcesRes.data.data || []
-                const fetchedStatuses = statusesRes.data.data || []
-                const fetchedExps = expRes.data.data || []
+                const responses = await Promise.all(requests)
 
-                setAvailableSources(fetchedSources)
-                setAvailableStatuses(fetchedStatuses)
-                setAvailableExperiences(fetchedExps)
+                const courses = responses[0]?.data?.data || []
+                const sources = responses[1]?.data?.data || []
+                const statuses = responses[2]?.data?.data || []
+                const experiences = responses[3]?.data?.data || []
+                const users = isAdmin
+                    ? responses[4]?.data?.data || responses[4]?.data || []
+                    : []
 
-                // Set defaults for new leads
+                setAvailableCourses(courses)
+                setAvailableSources(sources)
+                setAvailableStatuses(statuses)
+                setAvailableExperiences(experiences)
+                if (isAdmin) setAvailableUsers(users)
+
                 if (!initialData) {
                     setFormData((prev) => ({
                         ...prev,
-                        source:
-                            fetchedSources.length > 0
-                                ? fetchedSources[0].name
-                                : '',
-                        status:
-                            fetchedStatuses.length > 0
-                                ? fetchedStatuses[0].name
-                                : '',
+                        source: prev.source || sources[0]?.name || '',
+                        status: prev.status || statuses[0]?.name || '',
                         experienceLevel:
-                            fetchedExps.length > 0 ? fetchedExps[0].name : '',
+                            prev.experienceLevel || experiences[0]?.name || '',
                     }))
                 }
             } catch (error) {
-                console.error('Failed to fetch dropdown data:', error)
+                console.error('Failed to fetch dropdown datasets:', error)
             }
         }
 
         if (isOpen) fetchDropdownData()
-    }, [isOpen, initialData])
+    }, [isOpen, isAdmin, initialData])
 
     useEffect(() => {
+        if (!isOpen) return
+
         if (initialData) {
             setFormData({
+                ...defaultFormState,
                 ...initialData,
+                assignedTo:
+                    typeof initialData.assignedTo === 'object'
+                        ? initialData.assignedTo?._id || ''
+                        : initialData.assignedTo || '',
                 nextFollowUpDate: initialData.nextFollowUpDate
                     ? initialData.nextFollowUpDate.split('T')[0]
                     : '',
@@ -82,26 +99,41 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                         typeof course === 'object' ? course._id : course,
                     ) || [],
                 lostReason: initialData.lostReason || '',
+                estimatedValue: Number(initialData.estimatedValue) || 0,
             })
         } else {
-            setFormData((prev) => ({
+            setFormData({
                 ...defaultFormState,
-                source: prev.source,
-                status: prev.status,
-                experienceLevel: prev.experienceLevel,
-            }))
+                source: availableSources[0]?.name || '',
+                status: availableStatuses[0]?.name || '',
+                experienceLevel: availableExperiences[0]?.name || '',
+                assignedTo: currentUser?._id || '',
+            })
         }
-    }, [initialData, isOpen])
+    }, [
+        isOpen,
+        initialData,
+        availableSources,
+        availableStatuses,
+        availableExperiences,
+        currentUser,
+    ])
 
     const handleChange = (e) => {
         const { name, value, type, multiple, selectedOptions } = e.target
+
         if (multiple) {
-            const values = Array.from(selectedOptions, (option) => option.value)
+            const values = Array.from(selectedOptions, (opt) => opt.value)
             setFormData((prev) => ({ ...prev, [name]: values }))
         } else {
             setFormData((prev) => ({
                 ...prev,
-                [name]: type === 'number' ? Number(value) : value,
+                [name]:
+                    type === 'number'
+                        ? value === ''
+                            ? ''
+                            : Number(value)
+                        : value,
             }))
         }
     }
@@ -109,11 +141,21 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         setIsSubmitting(true)
+
         const payload = { ...formData }
+        payload.estimatedValue = Number(payload.estimatedValue) || 0
+
         if (!payload.nextFollowUpDate) delete payload.nextFollowUpDate
         if (payload.status !== 'LOST') payload.lostReason = ''
-        await onSubmit(payload)
-        setIsSubmitting(false)
+        if (!payload.assignedTo) delete payload.assignedTo
+
+        try {
+            await onSubmit(payload)
+        } catch (error) {
+            console.error('Form submission failed:', error)
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     if (!isOpen) return null
@@ -152,6 +194,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
+
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Phone Number *
@@ -165,6 +208,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
+
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Email
@@ -177,6 +221,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
+
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     City
@@ -190,7 +235,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 />
                             </div>
 
-                            {/* DYNAMIC SOURCE */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Source
@@ -201,20 +245,14 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     onChange={handleChange}
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
                                 >
-                                    {availableSources.length === 0 && (
-                                        <option value=''>
-                                            Loading sources...
-                                        </option>
-                                    )}
                                     {availableSources.map((s) => (
                                         <option key={s._id} value={s.name}>
-                                            {s.label}
+                                            {s.label || s.name}
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
-                            {/* DYNAMIC STATUS */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Status
@@ -225,14 +263,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     onChange={handleChange}
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
                                 >
-                                    {availableStatuses.length === 0 && (
-                                        <option value=''>
-                                            Loading statuses...
-                                        </option>
-                                    )}
                                     {availableStatuses.map((s) => (
                                         <option key={s._id} value={s.name}>
-                                            {s.label}
+                                            {s.label || s.name}
                                         </option>
                                     ))}
                                 </select>
@@ -244,7 +277,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                         Reason for Loss *
                                     </label>
                                     <input
-                                        required={formData.status === 'LOST'}
+                                        required
                                         type='text'
                                         name='lostReason'
                                         value={formData.lostReason}
@@ -255,7 +288,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 </div>
                             )}
 
-                            {/* DYNAMIC EXPERIENCE */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Experience Level
@@ -266,18 +298,41 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     onChange={handleChange}
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
                                 >
-                                    {availableExperiences.length === 0 && (
-                                        <option value=''>
-                                            Loading experiences...
-                                        </option>
-                                    )}
                                     {availableExperiences.map((e) => (
                                         <option key={e._id} value={e.name}>
-                                            {e.label}
+                                            {e.label || e.name}
                                         </option>
                                     ))}
                                 </select>
                             </div>
+
+                            {/* ADMIN EXCLUSIVE: Assign Lead To */}
+                            {isAdmin && (
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        Assign Lead To
+                                    </label>
+                                    <select
+                                        name='assignedTo'
+                                        value={formData.assignedTo}
+                                        onChange={handleChange}
+                                        className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                    >
+                                        <option value={currentUser?._id || ''}>
+                                            Assign to Me (Default)
+                                        </option>
+                                        {availableUsers.map((u) => (
+                                            <option key={u._id} value={u._id}>
+                                                {u.firstName} {u.lastName} (
+                                                {u.role?.name ||
+                                                    u.role ||
+                                                    'Staff'}
+                                                )
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
@@ -291,6 +346,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
+
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Estimated Value (₹)

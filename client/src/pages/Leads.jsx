@@ -6,9 +6,17 @@ import LeadModal from '../components/leads/LeadModal'
 import LeadActivityPanel from '../components/leads/LeadActivityPanel'
 
 const Leads = () => {
-    // Determine if the logged-in user is an admin
-    const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {}
-    const isAdmin = userInfo.role === 'admin'
+    // 1. Get user info safely from localStorage
+    const userInfoString = localStorage.getItem('userInfo')
+    const userInfo = userInfoString ? JSON.parse(userInfoString) : null
+
+    // 2. Check Admin status
+    const roleName = (
+        userInfo?.role?.name ||
+        userInfo?.role ||
+        ''
+    ).toLowerCase()
+    const isAdmin = roleName === 'admin'
 
     const [leads, setLeads] = useState([])
     const [usersList, setUsersList] = useState([])
@@ -22,7 +30,6 @@ const Leads = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingLead, setEditingLead] = useState(null)
 
-    // Add new state for the activity panel
     const [isActivityPanelOpen, setIsActivityPanelOpen] = useState(false)
     const [activeLeadForActivity, setActiveLeadForActivity] = useState(null)
 
@@ -30,19 +37,19 @@ const Leads = () => {
         try {
             setIsLoading(true)
 
-            // 1. Fetch Leads
+            // Fetch Leads
             const leadsRes = await api.get('/leads')
-            setLeads(leadsRes.data.data || []) // leads returns { data: [...] }
+            setLeads(leadsRes.data.data || [])
 
-            // 2. Fetch Users (Only if Admin)
+            // Fetch Users (Only if Admin)
             if (isAdmin) {
                 try {
-                    // Hitting the specific route defined in userRoutes.js
-                    const usersRes = await api.get('/users/getUsers')
-
-                    // Because your controller does `res.json(users)`,
-                    // Axios puts that directly into `usersRes.data`
-                    setUsersList(usersRes.data || [])
+                    const usersRes = await api.get('/users')
+                    // Extract the array properly from the response envelope
+                    const fetchedUsers = usersRes.data?.data || usersRes.data
+                    setUsersList(
+                        Array.isArray(fetchedUsers) ? fetchedUsers : [],
+                    )
                 } catch (userErr) {
                     console.error('Users API Failed:', userErr)
                 }
@@ -56,8 +63,10 @@ const Leads = () => {
             setIsLoading(false)
         }
     }
+
     useEffect(() => {
         fetchData()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const handleOpenModal = (lead = null) => {
@@ -116,6 +125,38 @@ const Leads = () => {
         return matchesSearch && matchesStatus && matchesAssignee
     })
 
+    const handleOpenActivityPanel = (lead) => {
+        setActiveLeadForActivity(lead)
+        setIsActivityPanelOpen(true)
+    }
+
+    const handleCloseActivityPanel = () => {
+        setActiveLeadForActivity(null)
+        setIsActivityPanelOpen(false)
+    }
+
+    const handleCSVImport = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            setIsLoading(true)
+            const { data } = await api.post('/leads/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            alert(data.message || 'Leads imported successfully!')
+            fetchData()
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to import CSV file.')
+        } finally {
+            setIsLoading(false)
+            e.target.value = null
+        }
+    }
+
     if (isLoading)
         return (
             <div className='flex items-center justify-center h-[calc(100vh-200px)]'>
@@ -130,45 +171,9 @@ const Leads = () => {
             </div>
         )
 
-    // New Handlers for the Activity Panel
-    const handleOpenActivityPanel = (lead) => {
-        setActiveLeadForActivity(lead)
-        setIsActivityPanelOpen(true)
-    }
-
-    const handleCloseActivityPanel = () => {
-        setActiveLeadForActivity(null)
-        setIsActivityPanelOpen(false)
-    }
-
-    // Add an import trigger handler inside the Leads component:
-    const handleCSVImport = async (e) => {
-        const file = e.target.files[0]
-        if (!file) return
-
-        const formData = new FormData()
-        formData.append('file', file)
-
-        try {
-            setIsLoading(true)
-            const { data } = await api.post('/leads/import', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            })
-            alert(data.message || 'Leads imported successfully!')
-            fetchData() // Refresh list
-        } catch (err) {
-            alert(err.response?.data?.message || 'Failed to import CSV file.')
-        } finally {
-            setIsLoading(false)
-            // Reset file input value
-            e.target.value = null
-        }
-    }
-
     return (
         <div className='bg-gray-50 min-h-screen py-8'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                {/* Hidden file input */}
                 <input
                     type='file'
                     id='csvFileInput'
@@ -202,8 +207,8 @@ const Leads = () => {
                     onClose={handleCloseModal}
                     onSubmit={handleSaveLead}
                     initialData={editingLead}
+                    currentUser={userInfo} // CRITICAL: This was missing, now passed properly
                 />
-                {/* Render the new Activity Panel */}
                 <LeadActivityPanel
                     isOpen={isActivityPanelOpen}
                     onClose={handleCloseActivityPanel}

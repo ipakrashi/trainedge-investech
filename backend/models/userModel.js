@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-const userSchema = mongoose.Schema(
+const userSchema = new mongoose.Schema(
     {
         image: {
             type: String,
@@ -51,12 +51,14 @@ const userSchema = mongoose.Schema(
     },
 )
 
-userSchema.set('toJSON', {
-    transform: function (doc, ret) {
-        delete ret.password
-        return ret
-    },
-})
+// Strip password hash from all JSON and plain object representations
+const cleanTransform = (doc, ret) => {
+    delete ret.password
+    return ret
+}
+
+userSchema.set('toJSON', { transform: cleanTransform })
+userSchema.set('toObject', { transform: cleanTransform })
 
 const userModel = mongoose.model('userModel', userSchema, 'users')
 export default userModel

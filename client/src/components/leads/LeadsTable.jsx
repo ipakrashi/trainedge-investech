@@ -5,7 +5,7 @@ const LeadsTable = ({
     onEditClick,
     onDeleteClick,
     onViewActivityClick,
-    isAdmin, // New prop to check role
+    isAdmin,
 }) => {
     return (
         <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
@@ -76,7 +76,6 @@ const LeadsTable = ({
                                     <td className='px-6 py-4 font-medium text-gray-900'>
                                         &#8377; {lead.estimatedValue || 0}
                                     </td>
-
                                     <td className='px-6 py-4 text-right space-x-3'>
                                         <button
                                             onClick={() =>
@@ -94,8 +93,6 @@ const LeadsTable = ({
                                         >
                                             <FiEdit2 className='text-lg inline' />
                                         </button>
-
-                                        {/* Conditionally render the delete button */}
                                         {isAdmin && (
                                             <button
                                                 onClick={() =>

@@ -13,6 +13,7 @@ import RoleManagement from './pages/admin/RoleManagement'
 import ManageSources from './pages/admin/ManageSources'
 import ManageStatuses from './pages/admin/ManageStatuses'
 import ManageExperiences from './pages/admin/ManageExperiences'
+import ReassignLeads from './pages/admin/ReassignLeads'
 
 const App = () => {
     return (
@@ -55,6 +56,10 @@ const App = () => {
                         <Route
                             path='/admin/experiences'
                             element={<ManageExperiences />}
+                        />
+                        <Route
+                            path='/admin/reassign'
+                            element={<ReassignLeads />}
                         />
                     </Route>
                 </Route>

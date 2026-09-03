@@ -9,9 +9,10 @@ import {
     FiUsers,
     FiBook,
     FiShield,
-    FiTarget, // Added icon for Sources
-    FiLayers, // Added icon for Sources
-    FiTrendingUp, // Added icon for Sources
+    FiTarget,
+    FiLayers,
+    FiTrendingUp,
+    FiRefreshCcw,
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -35,7 +36,7 @@ const Navbar = () => {
         <nav className='bg-white shadow-sm border-b border-gray-200 w-full sticky top-0 z-50'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                 <div className='grid grid-cols-[1fr_auto_1fr] items-center h-16'>
-                    {/* Brand Logo - Left */}
+                    {/* Brand Logo */}
                     <div className='justify-self-start flex items-center'>
                         <Link
                             to='/'
@@ -49,7 +50,7 @@ const Navbar = () => {
                         </Link>
                     </div>
 
-                    {/* Desktop Navigation & Admin Menu - Center */}
+                    {/* Desktop Navigation */}
                     <div className='hidden md:flex items-center space-x-8 justify-self-center'>
                         <div className='flex space-x-8 items-center'>
                             <NavLink to='/' className={navClass}>
@@ -67,7 +68,8 @@ const Navbar = () => {
                         </div>
 
                         {/* Admin Only Dropdown */}
-                        {userInfo?.role === 'admin' && (
+                        {userInfo?.role?.name === 'admin' ||
+                        userInfo?.role === 'admin' ? (
                             <div className='relative'>
                                 <button
                                     onClick={() => setIsAdminOpen(!isAdminOpen)}
@@ -93,6 +95,15 @@ const Navbar = () => {
                                             }
                                         >
                                             <FiUsers /> Manage Staff
+                                        </Link>
+                                        <Link
+                                            to='/admin/reassign'
+                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                            onClick={() =>
+                                                setIsAdminOpen(false)
+                                            }
+                                        >
+                                            <FiRefreshCcw /> Reassign Leads
                                         </Link>
                                         <Link
                                             to='/admin/courses'
@@ -142,10 +153,10 @@ const Navbar = () => {
                                     </div>
                                 )}
                             </div>
-                        )}
+                        ) : null}
                     </div>
 
-                    {/* Desktop User Actions - Right */}
+                    {/* Desktop User Actions */}
                     <div className='hidden md:flex items-center space-x-6 justify-self-end'>
                         <button className='flex items-center text-gray-600 hover:text-blue-600 transition-colors'>
                             <FiUser className='text-xl mr-2' />
@@ -206,7 +217,8 @@ const Navbar = () => {
                         </NavLink>
 
                         {/* Admin Management Links inside Mobile Drawer */}
-                        {userInfo?.role === 'admin' && (
+                        {userInfo?.role?.name === 'admin' ||
+                        userInfo?.role === 'admin' ? (
                             <>
                                 <div className='border-t border-gray-100 my-2 pt-2'>
                                     <span className='px-1 text-xs font-bold text-gray-400 uppercase tracking-wider'>
@@ -219,6 +231,13 @@ const Navbar = () => {
                                     className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
                                 >
                                     <FiUsers /> Manage Staff
+                                </Link>
+                                <Link
+                                    to='/admin/reassign'
+                                    onClick={toggleMenu}
+                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                >
+                                    <FiRefreshCcw /> Reassign Leads
                                 </Link>
                                 <Link
                                     to='/admin/courses'
@@ -241,11 +260,24 @@ const Navbar = () => {
                                 >
                                     <FiTarget /> Manage Sources
                                 </Link>
+                                <Link
+                                    to='/admin/statuses'
+                                    onClick={toggleMenu}
+                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                >
+                                    <FiLayers /> Manage Statuses
+                                </Link>
+                                <Link
+                                    to='/admin/experiences'
+                                    onClick={toggleMenu}
+                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                >
+                                    <FiTrendingUp /> Manage Experiences
+                                </Link>
                             </>
-                        )}
+                        ) : null}
 
                         <div className='border-t border-gray-100 my-2 pt-2'></div>
-
                         <button className='flex items-center text-gray-600 hover:text-blue-600 py-2 w-full text-left'>
                             <FiUser className='text-xl mr-3' />
                             {displayName}

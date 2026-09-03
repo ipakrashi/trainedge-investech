@@ -5,228 +5,210 @@ import userModel from '../models/userModel.js'
 import courseModel from '../models/courseModel.js'
 import asyncHandler from 'express-async-handler'
 
+// ==========================================
 // @desc    Create a new lead
 // @route   POST /api/leads
 // @access  Private
-export const createLead = async (req, res) => {
-    try {
-        const leadData = { ...req.body }
+// ==========================================
+export const createLead = asyncHandler(async (req, res) => {
+    const leadData = { ...req.body }
 
-        // Default to logged-in user if no assignee is provided
-        if (!leadData.assignedTo) {
-            leadData.assignedTo = req.user._id
-        }
-
-        const lead = await leadModel.create(leadData)
-
-        res.status(201).json({
-            success: true,
-            data: lead,
-        })
-    } catch (error) {
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(
-                (val) => val.message,
-            )
-            return res
-                .status(400)
-                .json({ success: false, message: messages.join(', ') })
-        }
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message,
-        })
+    // 1. Mandatory client validation
+    if (!leadData.fullName || !leadData.phone) {
+        res.status(400)
+        throw new Error('Lead full name and phone number are required')
     }
-}
 
-// @desc    Get all leads with filtering and pagination
+    // 2. Ownership authorization: Non-admins cannot assign leads to others
+    const roleName =
+        req.user.role?.name?.toLowerCase() || req.user.role?.toLowerCase()
+    if (roleName !== 'admin' && roleName !== 'manager') {
+        leadData.assignedTo = req.user._id
+    } else if (!leadData.assignedTo) {
+        leadData.assignedTo = req.user._id
+    }
+
+    // 3. Prevent duplicate active leads
+    const duplicateQuery = [{ phone: leadData.phone }]
+    if (leadData.email) duplicateQuery.push({ email: leadData.email })
+
+    const existingLead = await leadModel.findOne({ $or: duplicateQuery })
+    if (existingLead) {
+        res.status(400)
+        throw new Error('A lead with this phone number or email already exists')
+    }
+
+    // 4. Persistence
+    const lead = await leadModel.create(leadData)
+
+    res.status(201).json({
+        success: true,
+        data: lead,
+    })
+})
+
+// ==========================================
+// @desc    Get all leads (Scoped by Role & Filters)
 // @route   GET /api/leads
 // @access  Private
-export const getLeads = async (req, res) => {
-    try {
-        // Keeping the limit at 1000 so the frontend table loads all leads
-        const { status, source, city, page = 1, limit = 1000 } = req.query
+// ==========================================
+export const getLeads = asyncHandler(async (req, res) => {
+    const { status, source, city, page = 1, limit = 1000 } = req.query
 
-        let query = {}
+    const query = {}
 
-        // 1. Populate the role reference to read the string value
-        await req.user.populate('role')
+    // 1. Resolve role name safely from middleware context
+    const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
+    const isAdmin = roleName === 'admin'
 
-        // 2. Extract the role string (handles different common schema field names like 'name' or 'roleName')
-        const roleStr =
-            req.user.role?.name || req.user.role?.roleName || req.user.role
-        const isAdmin =
-            typeof roleStr === 'string' && roleStr.toLowerCase() === 'admin'
-
-        // 3. Apply the ownership filter ONLY if the user is NOT an admin
-        if (!isAdmin) {
-            query.assignedTo = req.user._id
-        }
-
-        if (status) query.status = status
-        if (source) query.source = source
-        if (city) query.city = new RegExp(city, 'i') // Case-insensitive search
-
-        // Pagination setup
-        const startIndex = (page - 1) * limit
-        const total = await leadModel.countDocuments(query)
-
-        const leads = await leadModel
-            .find(query)
-            .populate('interestedCourses', 'courseTitle fee category')
-            // Updated to use firstName and lastName based on your userSchema
-            .populate('assignedTo', 'firstName lastName email')
-            .sort({ createdAt: -1 })
-            .skip(startIndex)
-            .limit(parseInt(limit))
-
-        res.status(200).json({
-            success: true,
-            count: leads.length,
-            total,
-            totalPages: Math.ceil(total / limit),
-            currentPage: parseInt(page),
-            data: leads,
-        })
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message,
-        })
+    // 2. Data Scoping: Non-admins can only see their own leads
+    if (!isAdmin) {
+        query.assignedTo = req.user._id
     }
-}
-// @desc    Get a single lead by ID
+
+    // 3. Optional Filters
+    if (status) query.status = status
+    if (source) query.source = source
+    if (city) query.city = new RegExp(city, 'i')
+
+    // 4. Pagination math
+    const parsedPage = Math.max(1, parseInt(page, 10))
+    const parsedLimit = Math.max(1, parseInt(limit, 10))
+    const startIndex = (parsedPage - 1) * parsedLimit
+
+    const total = await leadModel.countDocuments(query)
+
+    // 5. Query execution
+    const leads = await leadModel
+        .find(query)
+        .populate('interestedCourses', 'courseTitle fee category')
+        .populate('assignedTo', 'firstName lastName email')
+        .sort({ createdAt: -1 })
+        .skip(startIndex)
+        .limit(parsedLimit)
+
+    res.status(200).json({
+        success: true,
+        count: leads.length,
+        total,
+        totalPages: Math.ceil(total / parsedLimit),
+        currentPage: parsedPage,
+        data: leads,
+    })
+})
+
+// ==========================================
+// @desc    Get single lead by ID
 // @route   GET /api/leads/:id
 // @access  Private
-export const getLeadById = async (req, res) => {
-    try {
-        const lead = await leadModel
-            .findById(req.params.id)
-            .populate('interestedCourses', 'courseTitle fee category')
-            .populate('assignedTo', 'name email')
+// ==========================================
+export const getLeadById = asyncHandler(async (req, res) => {
+    const lead = await leadModel
+        .findById(req.params.id)
+        .populate('interestedCourses', 'courseTitle fee category')
+        .populate('assignedTo', 'firstName lastName email')
 
-        if (!lead) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'Lead not found' })
-        }
-
-        if (
-            req.user.role !== 'admin' &&
-            lead.assignedTo._id.toString() !== req.user._id.toString()
-        ) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to view this lead',
-            })
-        }
-
-        res.status(200).json({ success: true, data: lead })
-    } catch (error) {
-        if (error.name === 'CastError') {
-            return res
-                .status(400)
-                .json({ success: false, message: 'Invalid lead ID format' })
-        }
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message,
-        })
+    if (!lead) {
+        res.status(404)
+        throw new Error('Lead not found')
     }
-}
 
-// @desc    Update lead
+    // 1. Resolve role cleanly
+    const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
+    const isAdmin = roleName === 'admin'
+
+    // 2. Ownership check: Non-admins cannot inspect leads assigned to others
+    const leadOwnerId = lead.assignedTo?._id?.toString()
+    if (!isAdmin && leadOwnerId !== req.user._id.toString()) {
+        res.status(403)
+        throw new Error('Not authorized to view this lead')
+    }
+
+    res.status(200).json({
+        success: true,
+        data: lead,
+    })
+})
+
+// ==========================================
+// @desc    Update a lead
 // @route   PUT /api/leads/:id
 // @access  Private
-export const updateLead = async (req, res) => {
-    try {
-        let lead = await leadModel.findById(req.params.id)
+// ==========================================
+export const updateLead = asyncHandler(async (req, res) => {
+    const lead = await leadModel.findById(req.params.id)
 
-        if (!lead) {
-            return res.status(404).json({
-                success: false,
-                message: 'Lead not found',
-            })
-        }
-
-        // 1. Populate the role reference to read the string value
-        await req.user.populate('role')
-
-        // 2. Extract the role string to properly identify the admin
-        const roleStr =
-            req.user.role?.name || req.user.role?.roleName || req.user.role
-        const isAdmin =
-            typeof roleStr === 'string' && roleStr.toLowerCase() === 'admin'
-
-        // 3. Ensure user is either the owner OR an admin
-        if (
-            lead.assignedTo?.toString() !== req.user._id.toString() &&
-            !isAdmin
-        ) {
-            return res.status(403).json({
-                success: false,
-                message:
-                    'Not authorized to update this lead. It belongs to another user.',
-            })
-        }
-
-        lead = await leadModel
-            .findByIdAndUpdate(req.params.id, req.body, {
-                new: true,
-                runValidators: true,
-            })
-            .populate('assignedTo', 'firstName lastName email')
-
-        res.status(200).json({
-            success: true,
-            data: lead,
-        })
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message,
-        })
+    if (!lead) {
+        res.status(404)
+        throw new Error('Lead not found')
     }
-}
+
+    // 1. Resolve role cleanly
+    const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
+    const isAdmin = roleName === 'admin'
+
+    // 2. Ownership check: User must be an admin OR the current assignee
+    const isOwner = lead.assignedTo?.toString() === req.user._id.toString()
+    if (!isAdmin && !isOwner) {
+        res.status(403)
+        throw new Error('Not authorized to update this lead')
+    }
+
+    // 3. Security Sanitize: Strip unauthorized fields
+    const updates = { ...req.body }
+    if (!isAdmin) {
+        delete updates.assignedTo // Non-admins cannot transfer leads
+    }
+
+    // 4. Persistence with validation
+    const updatedLead = await leadModel
+        .findByIdAndUpdate(req.params.id, updates, {
+            new: true,
+            runValidators: true,
+        })
+        .populate('interestedCourses', 'courseTitle fee category')
+        .populate('assignedTo', 'firstName lastName email')
+
+    res.status(200).json({
+        success: true,
+        data: updatedLead,
+    })
+})
+
+// ==========================================
 // @desc    Delete a lead
 // @route   DELETE /api/leads/:id
-// @access  Private (Admin Only)
-export const deleteLead = async (req, res) => {
-    // Controller remains the same, ensure role check is handled in the route middleware
-    try {
-        const lead = await leadModel.findByIdAndDelete(req.params.id)
-
-        if (!lead) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'Lead not found' })
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Lead removed successfully',
-        })
-    } catch (error) {
-        if (error.name === 'CastError') {
-            return res
-                .status(400)
-                .json({ success: false, message: 'Invalid lead ID format' })
-        }
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message,
-        })
+// @access  Private/Admin
+// ==========================================
+export const deleteLead = asyncHandler(async (req, res) => {
+    // 1. Role verification: strictly Admins only
+    const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
+    if (roleName !== 'admin') {
+        res.status(403)
+        throw new Error('Access denied. Only administrators can delete leads.')
     }
-}
 
+    // 2. Locate and delete the document in one operation
+    const lead = await leadModel.findByIdAndDelete(req.params.id)
+
+    if (!lead) {
+        res.status(404)
+        throw new Error('Lead not found')
+    }
+
+    // 3. Return the deleted id for immediate React state reconciliation
+    res.status(200).json({
+        success: true,
+        message: 'Lead permanently removed',
+        id: req.params.id,
+    })
+})
+
+// =======================================
 // @desc    Import Leads from CSV
 // @route   POST /api/leads/import
 // @access  Private
+// =======================================
 export const importLeadsCSV = asyncHandler(async (req, res) => {
     if (!req.file) {
         res.status(400)

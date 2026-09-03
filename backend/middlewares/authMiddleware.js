@@ -32,6 +32,9 @@ const protect = asyncHandler(async (req, res, next) => {
             userModel
                 .updateOne({ _id: req.user._id }, { lastLogin: new Date() })
                 .exec()
+                .catch((err) =>
+                    console.error('Heartbeat update failed:', err.message),
+                )
 
             next()
         } catch (error) {
