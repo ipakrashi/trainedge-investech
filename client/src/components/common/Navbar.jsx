@@ -9,6 +9,7 @@ import {
     FiUsers,
     FiBook,
     FiShield,
+    FiTarget, // Added icon for Sources
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -19,14 +20,10 @@ const Navbar = () => {
 
     const toggleMenu = () => setIsOpen(!isOpen)
 
-    // 1. Retrieve and parse the user data
     const userInfoString = localStorage.getItem('userInfo')
     const userInfo = userInfoString ? JSON.parse(userInfoString) : null
-
-    // 2. Set a fallback just in case the data is missing
     const displayName = userInfo?.firstName || 'Profile'
 
-    // Helper function to apply active states to navigation links
     const navClass = ({ isActive }) =>
         isActive
             ? 'text-blue-600 font-semibold block py-2 md:py-0'
@@ -113,6 +110,15 @@ const Navbar = () => {
                                         >
                                             <FiShield /> Manage Roles
                                         </Link>
+                                        <Link
+                                            to='/admin/sources'
+                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                            onClick={() =>
+                                                setIsAdminOpen(false)
+                                            }
+                                        >
+                                            <FiTarget /> Manage Sources
+                                        </Link>
                                     </div>
                                 )}
                             </div>
@@ -135,7 +141,6 @@ const Navbar = () => {
                         <button
                             onClick={toggleMenu}
                             className='text-gray-600 hover:text-blue-600 focus:outline-none p-2'
-                            aria-label='Toggle navigation'
                         >
                             {isOpen ? (
                                 <FiX className='text-2xl' />
@@ -208,6 +213,13 @@ const Navbar = () => {
                                     className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
                                 >
                                     <FiShield /> Manage Roles
+                                </Link>
+                                <Link
+                                    to='/admin/sources'
+                                    onClick={toggleMenu}
+                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                >
+                                    <FiTarget /> Manage Sources
                                 </Link>
                             </>
                         )}

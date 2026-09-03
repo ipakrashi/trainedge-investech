@@ -195,6 +195,7 @@ const Leads = () => {
                     onEditClick={handleOpenModal}
                     onDeleteClick={handleDeleteLead}
                     onViewActivityClick={handleOpenActivityPanel}
+                    isAdmin={isAdmin}
                 />
                 <LeadModal
                     isOpen={isModalOpen}

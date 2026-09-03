@@ -45,11 +45,22 @@ export const createLead = async (req, res) => {
 // @access  Private
 export const getLeads = async (req, res) => {
     try {
-        const { status, source, city, page = 1, limit = 10 } = req.query
+        // Keeping the limit at 1000 so the frontend table loads all leads
+        const { status, source, city, page = 1, limit = 1000 } = req.query
 
         let query = {}
 
-        if (req.user.role !== 'admin') {
+        // 1. Populate the role reference to read the string value
+        await req.user.populate('role')
+
+        // 2. Extract the role string (handles different common schema field names like 'name' or 'roleName')
+        const roleStr =
+            req.user.role?.name || req.user.role?.roleName || req.user.role
+        const isAdmin =
+            typeof roleStr === 'string' && roleStr.toLowerCase() === 'admin'
+
+        // 3. Apply the ownership filter ONLY if the user is NOT an admin
+        if (!isAdmin) {
             query.assignedTo = req.user._id
         }
 
@@ -64,7 +75,8 @@ export const getLeads = async (req, res) => {
         const leads = await leadModel
             .find(query)
             .populate('interestedCourses', 'courseTitle fee category')
-            .populate('assignedTo', 'name email')
+            // Updated to use firstName and lastName based on your userSchema
+            .populate('assignedTo', 'firstName lastName email')
             .sort({ createdAt: -1 })
             .skip(startIndex)
             .limit(parseInt(limit))
@@ -85,7 +97,6 @@ export const getLeads = async (req, res) => {
         })
     }
 }
-
 // @desc    Get a single lead by ID
 // @route   GET /api/leads/:id
 // @access  Private

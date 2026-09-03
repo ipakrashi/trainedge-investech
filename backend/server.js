@@ -7,6 +7,7 @@ import leadRoutes from './routes/leadRoutes.js'
 import courseRoutes from './routes/courseRoutes.js'
 import leadActivityRoutes from './routes/leadActivityRoutes.js'
 import roleRoutes from './routes/roleRoutes.js'
+import sourceRoutes from './routes/sourceRoutes.js'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -32,6 +33,7 @@ app.use('/api/leads', leadRoutes)
 app.use('/api/courses', courseRoutes)
 app.use('/api/lead-activities', leadActivityRoutes)
 app.use('/api/roles', roleRoutes)
+app.use('/api/sources', sourceRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {

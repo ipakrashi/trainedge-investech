@@ -10,6 +10,7 @@ import AdminRoute from './components/routing/AdminRoute'
 import UserManagement from './pages/admin/UserManagement'
 import CourseManagement from './pages/admin/CourseManagement'
 import RoleManagement from './pages/admin/RoleManagement'
+import ManageSources from './pages/admin/ManageSources'
 
 const App = () => {
     return (
@@ -39,6 +40,10 @@ const App = () => {
                             <Route
                                 path='/admin/roles'
                                 element={<RoleManagement />}
+                            />
+                            <Route
+                                path='/admin/sources'
+                                element={<ManageSources />}
                             />
                         </Route>
                     </Route>

@@ -7,7 +7,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
         email: '',
         phone: '',
         city: '',
-        source: 'WEBSITE_FORM',
+        source: '', // We will default this dynamically or leave blank
         status: 'NEW',
         experienceLevel: 'BEGINNER',
         estimatedValue: 0,
@@ -19,18 +19,38 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     const [formData, setFormData] = useState(defaultFormState)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [availableCourses, setAvailableCourses] = useState([])
+    const [availableSources, setAvailableSources] = useState([]) // New state
 
     useEffect(() => {
-        const fetchCourses = async () => {
+        const fetchDropdownData = async () => {
             try {
-                const response = await api.get('/courses')
-                setAvailableCourses(response.data.data || [])
+                // Fetch both datasets concurrently
+                const [coursesRes, sourcesRes] = await Promise.all([
+                    api.get('/courses'),
+                    api.get('/sources'),
+                ])
+
+                setAvailableCourses(coursesRes.data.data || [])
+
+                const fetchedSources = sourcesRes.data.data || []
+                setAvailableSources(fetchedSources)
+
+                // If it's a new form, set the default source to the first active one
+                if (!initialData && fetchedSources.length > 0) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        source: fetchedSources[0].name,
+                    }))
+                }
             } catch (error) {
-                console.error('Failed to fetch courses:', error)
+                console.error('Failed to fetch dropdown data:', error)
             }
         }
-        fetchCourses()
-    }, [])
+
+        if (isOpen) {
+            fetchDropdownData()
+        }
+    }, [isOpen, initialData])
 
     useEffect(() => {
         if (initialData) {
@@ -46,7 +66,11 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                 lostReason: initialData.lostReason || '',
             })
         } else {
-            setFormData(defaultFormState)
+            // Keep the dynamically fetched default source if it exists
+            setFormData((prev) => ({
+                ...defaultFormState,
+                source: prev.source,
+            }))
         }
     }, [initialData, isOpen])
 
@@ -70,13 +94,8 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
 
         const payload = { ...formData }
 
-        if (!payload.nextFollowUpDate) {
-            delete payload.nextFollowUpDate
-        }
-
-        if (payload.status !== 'LOST') {
-            payload.lostReason = ''
-        }
+        if (!payload.nextFollowUpDate) delete payload.nextFollowUpDate
+        if (payload.status !== 'LOST') payload.lostReason = ''
 
         await onSubmit(payload)
         setIsSubmitting(false)
@@ -85,9 +104,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     if (!isOpen) return null
 
     return (
-        // Added p-4 sm:p-6 to provide padding so the modal doesn't touch the screen edges
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6'>
-            {/* Added max-h-full and flex flex-col to bound the modal height */}
             <div className='bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-full overflow-hidden'>
                 {/* Fixed Header */}
                 <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0'>
@@ -109,6 +126,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                     {/* Scrollable Form Body */}
                     <div className='p-6 overflow-y-auto flex-1'>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            {/* ... [Keep fullName, phone, email, city inputs exactly the same] ... */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Full Name *
@@ -122,7 +140,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Phone Number *
@@ -136,7 +153,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Email
@@ -149,7 +165,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     City
@@ -163,6 +178,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 />
                             </div>
 
+                            {/* DYNAMIC SOURCE DROPDOWN */}
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Source
@@ -173,18 +189,19 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                                     onChange={handleChange}
                                     className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
                                 >
-                                    <option value='WEBSITE_FORM'>
-                                        Website Form
-                                    </option>
-                                    <option value='GOOGLE_ADS'>
-                                        Google Ads
-                                    </option>
-                                    <option value='META_ADS'>Meta Ads</option>
-                                    <option value='YOUTUBE'>YouTube</option>
-                                    <option value='REFERRAL'>Referral</option>
-                                    <option value='WALK_IN'>Walk In</option>
-                                    <option value='WEBINAR'>Webinar</option>
-                                    <option value='OTHER'>Other</option>
+                                    {availableSources.length === 0 && (
+                                        <option value=''>
+                                            Loading sources...
+                                        </option>
+                                    )}
+                                    {availableSources.map((sourceOption) => (
+                                        <option
+                                            key={sourceOption._id}
+                                            value={sourceOption.name}
+                                        >
+                                            {sourceOption.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
