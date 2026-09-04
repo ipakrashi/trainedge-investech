@@ -1,3 +1,4 @@
+// src/pages/StudentRoster.jsx
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 import {
@@ -40,6 +41,7 @@ const StudentRoster = () => {
         try {
             const res = await api.get('/students')
             const allStudents = res.data?.data || []
+            // Filter out pending students (only show ACTIVE, GRADUATED, DROPPED)
             setStudents(
                 allStudents.filter((s) => s.status !== 'PENDING_ASSIGNMENT'),
             )
@@ -250,32 +252,50 @@ const StudentRoster = () => {
                                         </td>
                                         <td className='px-6 py-4 text-right'>
                                             <div className='flex items-center justify-end gap-2'>
-                                                {student.studentAgreementLink && (
+                                                {/* Document View Logic with Disabled Feedback States */}
+                                                {student.studentAgreementLink ? (
                                                     <a
                                                         href={
                                                             student.studentAgreementLink
                                                         }
                                                         target='_blank'
                                                         rel='noreferrer'
-                                                        title='Student Agreement'
-                                                        className='text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded-md transition-colors'
+                                                        title='View Student Agreement'
+                                                        className='text-blue-500 hover:text-blue-700 p-1.5 bg-blue-50 rounded-md transition-colors'
                                                     >
                                                         <FiFileText size={16} />
                                                     </a>
+                                                ) : (
+                                                    <div
+                                                        title='No Student Agreement Uploaded'
+                                                        className='text-gray-300 p-1.5 bg-gray-50 rounded-md cursor-not-allowed'
+                                                    >
+                                                        <FiFileText size={16} />
+                                                    </div>
                                                 )}
-                                                {student.certificateLink && (
+
+                                                {student.certificateLink ? (
                                                     <a
                                                         href={
                                                             student.certificateLink
                                                         }
                                                         target='_blank'
                                                         rel='noreferrer'
-                                                        title='Course Certificate'
-                                                        className='text-amber-500 hover:text-amber-700 p-1 bg-amber-50 rounded-md transition-colors'
+                                                        title='View Course Certificate'
+                                                        className='text-amber-500 hover:text-amber-700 p-1.5 bg-amber-50 rounded-md transition-colors'
                                                     >
                                                         <FiAward size={16} />
                                                     </a>
+                                                ) : (
+                                                    <div
+                                                        title='No Course Certificate Uploaded'
+                                                        className='text-gray-300 p-1.5 bg-gray-50 rounded-md cursor-not-allowed'
+                                                    >
+                                                        <FiAward size={16} />
+                                                    </div>
                                                 )}
+
+                                                {/* Admin Edit Privileges */}
                                                 {isAdmin && (
                                                     <button
                                                         onClick={() =>
@@ -283,8 +303,8 @@ const StudentRoster = () => {
                                                                 student,
                                                             )
                                                         }
-                                                        title='Edit Student'
-                                                        className='text-gray-500 hover:text-gray-800 p-1 bg-gray-100 rounded-md transition-colors'
+                                                        title='Edit Student Details'
+                                                        className='text-gray-600 hover:text-blue-600 hover:bg-blue-50 p-1.5 bg-gray-100 rounded-md transition-colors'
                                                     >
                                                         <FiEdit size={16} />
                                                     </button>
