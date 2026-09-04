@@ -17,6 +17,8 @@ import ManageStatuses from './pages/admin/ManageStatuses'
 import ManageExperiences from './pages/admin/ManageExperiences'
 import ReassignLeads from './pages/admin/ReassignLeads'
 import PendingStudents from './pages/admin/PendingStudents' // <-- NEW Import
+import PaymentManagement from './pages/admin/PaymentManagement'
+import ManagePaymentModes from './pages/admin/ManagePaymentModes'
 
 const App = () => {
     return (
@@ -71,7 +73,15 @@ const App = () => {
                             <Route
                                 path='/admin/pending-students'
                                 element={<PendingStudents />}
-                            />{' '}
+                            />
+                            <Route
+                                path='/admin/payments'
+                                element={<PaymentManagement />}
+                            />
+                            <Route
+                                path='/admin/payment-modes'
+                                element={<ManagePaymentModes />}
+                            />
                             {/* <-- NEW Route */}
                         </Route>
                     </Route>

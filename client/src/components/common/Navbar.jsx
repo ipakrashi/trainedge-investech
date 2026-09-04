@@ -14,7 +14,9 @@ import {
     FiLayers,
     FiTrendingUp,
     FiRefreshCcw,
-    FiClock, // NEW Import
+    FiClock,
+    FiDollarSign,
+    FiCreditCard,
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -36,6 +38,7 @@ const Navbar = () => {
 
     const isAdmin = userRole === 'admin'
     const isFaculty = userRole === 'faculty'
+    const isAccounts = userRole === 'accounts' || userRole === 'accountant'
 
     const navClass = ({ isActive }) =>
         isActive
@@ -67,7 +70,6 @@ const Navbar = () => {
                                 Dashboard
                             </NavLink>
 
-                            {/* Role-Based Visiblity: Faculty do not sell, they deliver */}
                             {!isFaculty && (
                                 <>
                                     <NavLink to='/leads' className={navClass}>
@@ -82,7 +84,6 @@ const Navbar = () => {
                                 </>
                             )}
 
-                            {/* Students Tab - Visible to Admin and Faculty */}
                             {(isAdmin || isFaculty) && (
                                 <NavLink to='/students' className={navClass}>
                                     Students
@@ -96,15 +97,15 @@ const Navbar = () => {
                             )}
                         </div>
 
-                        {/* Admin Only Dropdown */}
-                        {isAdmin ? (
+                        {/* Admin / Accounts Dropdown */}
+                        {isAdmin || isAccounts ? (
                             <div className='relative'>
                                 <button
                                     onClick={() => setIsAdminOpen(!isAdminOpen)}
                                     className='flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors rounded-lg hover:bg-gray-50'
                                 >
                                     <FiSettings className='text-gray-500' />
-                                    Admin
+                                    {isAdmin ? 'Admin' : 'Finance'}
                                     <FiChevronDown
                                         className={`transition-transform duration-200 ${isAdminOpen ? 'rotate-180' : ''}`}
                                     />
@@ -112,84 +113,122 @@ const Navbar = () => {
 
                                 {isAdminOpen && (
                                     <div className='absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50'>
-                                        <div className='px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1'>
-                                            Operational Workflow
-                                        </div>
-                                        <Link
-                                            to='/admin/pending-students'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors font-medium'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiClock /> Map Pending Students
-                                        </Link>
+                                        {isAdmin && (
+                                            <>
+                                                <div className='px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1'>
+                                                    Operational Workflow
+                                                </div>
+                                                <Link
+                                                    to='/admin/pending-students'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors font-medium'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiClock /> Map Pending
+                                                    Students
+                                                </Link>
+                                            </>
+                                        )}
+
                                         <div className='px-4 py-2 mt-1 text-xs font-bold text-gray-400 uppercase tracking-wider border-y border-gray-50 mb-1'>
-                                            System Management
+                                            Financial Controls
                                         </div>
                                         <Link
-                                            to='/admin/users'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                            to='/admin/payments'
+                                            className='flex items-center gap-3 px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors font-medium'
                                             onClick={() =>
                                                 setIsAdminOpen(false)
                                             }
                                         >
-                                            <FiUsers /> Manage Staff
+                                            <FiDollarSign /> Fee Payments
                                         </Link>
-                                        <Link
-                                            to='/admin/reassign'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiRefreshCcw /> Reassign Leads
-                                        </Link>
-                                        <Link
-                                            to='/admin/courses'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiBook /> Manage Courses
-                                        </Link>
-                                        <Link
-                                            to='/admin/roles'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiShield /> Manage Roles
-                                        </Link>
-                                        <Link
-                                            to='/admin/sources'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiTarget /> Manage Sources
-                                        </Link>
-                                        <Link
-                                            to='/admin/statuses'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiLayers /> Manage Statuses
-                                        </Link>
-                                        <Link
-                                            to='/admin/experiences'
-                                            className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                            onClick={() =>
-                                                setIsAdminOpen(false)
-                                            }
-                                        >
-                                            <FiTrendingUp /> Manage Experiences
-                                        </Link>
+
+                                        {isAdmin && (
+                                            <Link
+                                                to='/admin/payment-modes'
+                                                className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                onClick={() =>
+                                                    setIsAdminOpen(false)
+                                                }
+                                            >
+                                                <FiCreditCard /> Manage Payment
+                                                Modes
+                                            </Link>
+                                        )}
+
+                                        {isAdmin && (
+                                            <>
+                                                <div className='px-4 py-2 mt-1 text-xs font-bold text-gray-400 uppercase tracking-wider border-y border-gray-50 mb-1'>
+                                                    System Management
+                                                </div>
+                                                <Link
+                                                    to='/admin/users'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiUsers /> Manage Staff
+                                                </Link>
+                                                <Link
+                                                    to='/admin/reassign'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiRefreshCcw /> Reassign
+                                                    Leads
+                                                </Link>
+                                                <Link
+                                                    to='/admin/courses'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiBook /> Manage Courses
+                                                </Link>
+                                                <Link
+                                                    to='/admin/roles'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiShield /> Manage Roles
+                                                </Link>
+                                                <Link
+                                                    to='/admin/sources'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiTarget /> Manage Sources
+                                                </Link>
+                                                <Link
+                                                    to='/admin/statuses'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiLayers /> Manage Statuses
+                                                </Link>
+                                                <Link
+                                                    to='/admin/experiences'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiTrendingUp /> Manage
+                                                    Experiences
+                                                </Link>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -274,70 +313,91 @@ const Navbar = () => {
                             </NavLink>
                         )}
 
-                        {/* Admin Management Links inside Mobile Drawer */}
-                        {isAdmin ? (
+                        {/* Management & Finance Links inside Mobile Drawer */}
+                        {isAdmin || isAccounts ? (
                             <>
                                 <div className='border-t border-gray-100 my-2 pt-2'>
                                     <span className='px-1 text-xs font-bold text-gray-400 uppercase tracking-wider'>
-                                        System Management
+                                        Controls & Finance
                                     </span>
                                 </div>
                                 <Link
-                                    to='/admin/pending-students'
+                                    to='/admin/payments'
                                     onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium rounded-lg transition-colors'
+                                    className='flex items-center gap-3 px-3 py-2 text-sm text-green-600 hover:bg-green-50 font-medium rounded-lg transition-colors'
                                 >
-                                    <FiClock /> Map Pending Students
+                                    <FiDollarSign /> Fee Payments
                                 </Link>
-                                <Link
-                                    to='/admin/users'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiUsers /> Manage Staff
-                                </Link>
-                                <Link
-                                    to='/admin/reassign'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiRefreshCcw /> Reassign Leads
-                                </Link>
-                                <Link
-                                    to='/admin/courses'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiBook /> Manage Courses
-                                </Link>
-                                <Link
-                                    to='/admin/roles'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiShield /> Manage Roles
-                                </Link>
-                                <Link
-                                    to='/admin/sources'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiTarget /> Manage Sources
-                                </Link>
-                                <Link
-                                    to='/admin/statuses'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiLayers /> Manage Statuses
-                                </Link>
-                                <Link
-                                    to='/admin/experiences'
-                                    onClick={toggleMenu}
-                                    className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                >
-                                    <FiTrendingUp /> Manage Experiences
-                                </Link>
+                                {isAdmin && (
+                                    <Link
+                                        to='/admin/payment-modes'
+                                        onClick={toggleMenu}
+                                        className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                    >
+                                        <FiCreditCard /> Manage Payment Modes
+                                    </Link>
+                                )}
+
+                                {isAdmin && (
+                                    <>
+                                        <Link
+                                            to='/admin/pending-students'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium rounded-lg transition-colors'
+                                        >
+                                            <FiClock /> Map Pending Students
+                                        </Link>
+                                        <Link
+                                            to='/admin/users'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiUsers /> Manage Staff
+                                        </Link>
+                                        <Link
+                                            to='/admin/reassign'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiRefreshCcw /> Reassign Leads
+                                        </Link>
+                                        <Link
+                                            to='/admin/courses'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiBook /> Manage Courses
+                                        </Link>
+                                        <Link
+                                            to='/admin/roles'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiShield /> Manage Roles
+                                        </Link>
+                                        <Link
+                                            to='/admin/sources'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiTarget /> Manage Sources
+                                        </Link>
+                                        <Link
+                                            to='/admin/statuses'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiLayers /> Manage Statuses
+                                        </Link>
+                                        <Link
+                                            to='/admin/experiences'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiTrendingUp /> Manage Experiences
+                                        </Link>
+                                    </>
+                                )}
                             </>
                         ) : null}
 
