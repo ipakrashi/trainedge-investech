@@ -7,14 +7,20 @@ import {
     FiMessageCircle,
     FiFileText,
     FiMonitor,
+    FiAlertCircle,
 } from 'react-icons/fi'
 
-const LeadActivityPanel = ({ isOpen, onClose, lead }) => {
+const LeadActivityPanel = ({
+    isOpen,
+    onClose,
+    lead,
+    onActivitySuccess,
+    isPendingMove,
+}) => {
     const [activities, setActivities] = useState([])
     const [isLoading, setIsLoading] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Form State
     const [type, setType] = useState('NOTE')
     const [summary, setSummary] = useState('')
     const [callOutcome, setCallOutcome] = useState('CONNECTED')
@@ -51,10 +57,14 @@ const LeadActivityPanel = ({ isOpen, onClose, lead }) => {
             }
             await api.post('/lead-activities', payload)
 
-            // Reset form and refresh list
             setSummary('')
             setType('NOTE')
             await fetchActivities()
+
+            // Notify parent to confirm the stage move
+            if (onActivitySuccess) {
+                onActivitySuccess()
+            }
         } catch (error) {
             alert(error.response?.data?.message || 'Failed to add activity')
         } finally {
@@ -62,7 +72,6 @@ const LeadActivityPanel = ({ isOpen, onClose, lead }) => {
         }
     }
 
-    // Helper to pick the right icon based on activity type
     const getActivityIcon = (actType) => {
         switch (actType) {
             case 'CALL':
@@ -88,7 +97,24 @@ const LeadActivityPanel = ({ isOpen, onClose, lead }) => {
             />
 
             <div className='absolute inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl flex flex-col transform transition-transform duration-300'>
-                {/* Header */}
+                {/* Pending Move Warning Banner */}
+                {isPendingMove && (
+                    <div className='bg-amber-50 text-amber-800 p-3 text-sm font-medium border-b border-amber-200 flex items-center gap-2 z-20'>
+                        <FiAlertCircle className='shrink-0 text-lg text-amber-600' />
+                        <p>
+                            Log an interaction below to confirm the stage
+                            change.{' '}
+                            <span
+                                className='font-bold cursor-pointer underline'
+                                onClick={onClose}
+                            >
+                                Cancel move
+                            </span>
+                            .
+                        </p>
+                    </div>
+                )}
+
                 <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50'>
                     <div>
                         <h2 className='text-lg font-bold text-gray-900'>
@@ -101,12 +127,12 @@ const LeadActivityPanel = ({ isOpen, onClose, lead }) => {
                     <button
                         onClick={onClose}
                         className='text-gray-400 hover:text-gray-600 text-2xl'
+                        title={isPendingMove ? 'Cancel stage move' : 'Close'}
                     >
                         &times;
                     </button>
                 </div>
 
-                {/* Log New Activity Form */}
                 <div className='p-6 border-b border-gray-100 bg-white'>
                     <form onSubmit={handleSubmit} className='space-y-4'>
                         <div className='flex gap-2'>
@@ -157,12 +183,15 @@ const LeadActivityPanel = ({ isOpen, onClose, lead }) => {
                             disabled={isSubmitting}
                             className='w-full py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50'
                         >
-                            {isSubmitting ? 'Saving...' : 'Log Activity'}
+                            {isSubmitting
+                                ? 'Saving...'
+                                : isPendingMove
+                                  ? 'Confirm Stage & Log Activity'
+                                  : 'Log Activity'}
                         </button>
                     </form>
                 </div>
 
-                {/* Timeline List */}
                 <div className='flex-1 overflow-y-auto p-6 bg-gray-50'>
                     {isLoading ? (
                         <div className='text-center text-sm text-gray-500'>

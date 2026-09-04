@@ -1,7 +1,6 @@
 import { FiClock, FiPhone } from 'react-icons/fi'
 
-const PipelineCard = ({ lead, onDragStart }) => {
-    // If the lead is already LOST, freeze it to enforce the modal requirement
+const PipelineCard = ({ lead, onDragStart, onClick }) => {
     const isDraggable = lead.status !== 'LOST'
 
     return (
@@ -10,10 +9,11 @@ const PipelineCard = ({ lead, onDragStart }) => {
             onDragStart={
                 isDraggable ? (e) => onDragStart(e, lead._id) : undefined
             }
+            onClick={() => onClick(lead)}
             className={`bg-white p-4 rounded-lg shadow-sm border transition-all ${
                 isDraggable
                     ? 'border-gray-200 cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-md'
-                    : 'border-red-100 cursor-not-allowed opacity-75 grayscale-[0.2]'
+                    : 'border-red-100 cursor-pointer opacity-75 grayscale-[0.2]'
             }`}
         >
             <div className='flex justify-between items-start mb-2'>
@@ -35,7 +35,6 @@ const PipelineCard = ({ lead, onDragStart }) => {
                     : 'No course specified'}
             </div>
 
-            {/* Display the lost reason if it exists */}
             {!isDraggable && lead.lostReason && (
                 <div className='text-[10px] text-red-600 bg-red-50 p-1.5 rounded mb-2 font-medium truncate'>
                     {lead.lostReason}

@@ -1,10 +1,16 @@
 import PipelineCard from './PipelineCard'
 
-const PipelineBoard = ({ stages, leads, onDragStart, onDragOver, onDrop }) => {
+const PipelineBoard = ({
+    stages,
+    leads,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onCardClick,
+}) => {
     return (
         <div className='flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-200px)] snap-x custom-scrollbar'>
             {stages.map((stage) => {
-                // Use stage.name to match the DB Schema
                 const stageLeads = leads.filter(
                     (lead) => lead.status === stage.name,
                 )
@@ -32,7 +38,6 @@ const PipelineBoard = ({ stages, leads, onDragStart, onDragOver, onDrop }) => {
                                 : (e) => onDrop(e, stage.name)
                         }
                     >
-                        {/* Dynamic Colors Applied Here */}
                         <div
                             className={`p-4 border-t-4 ${stage.colorClass || 'border-gray-500'} ${stage.bgClass || 'bg-gray-50'} rounded-t-xl`}
                         >
@@ -55,6 +60,7 @@ const PipelineBoard = ({ stages, leads, onDragStart, onDragOver, onDrop }) => {
                                     key={lead._id}
                                     lead={lead}
                                     onDragStart={onDragStart}
+                                    onClick={onCardClick}
                                 />
                             ))}
                         </div>

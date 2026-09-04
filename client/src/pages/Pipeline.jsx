@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 import PipelineBoard from '../components/pipeline/PipelineBoard'
+import LeadActivityPanel from '../components/leads/LeadActivityPanel'
 
 const Pipeline = () => {
     const [leads, setLeads] = useState([])
-    const [stages, setStages] = useState([]) // Dynamic Stages State
+    const [stages, setStages] = useState([])
     const [isLoading, setIsLoading] = useState(true)
+
+    // New states for the activity requirement
+    const [activeLeadForActivity, setActiveLeadForActivity] = useState(null)
+    const [pendingMove, setPendingMove] = useState(null)
 
     useEffect(() => {
         const fetchPipelineData = async () => {
             try {
-                // Fetch both Leads and Statuses concurrently
                 const [leadsRes, statusesRes] = await Promise.all([
                     api.get('/leads?limit=500'),
                     api.get('/statuses'),
@@ -33,22 +37,74 @@ const Pipeline = () => {
     }
     const handleDragOver = (e) => e.preventDefault()
 
-    const handleDrop = async (e, targetStatus) => {
+    const handleDrop = (e, targetStatus) => {
         e.preventDefault()
         const leadId = e.dataTransfer.getData('leadId')
+        const draggedLead = leads.find((l) => l._id === leadId)
 
+        if (!draggedLead || draggedLead.status === targetStatus) return
+
+        // 1. Optimistically update the UI immediately
         setLeads((prevLeads) =>
             prevLeads.map((lead) =>
                 lead._id === leadId ? { ...lead, status: targetStatus } : lead,
             ),
         )
 
-        try {
-            await api.put(`/leads/${leadId}`, { status: targetStatus })
-        } catch (err) {
-            console.error('Failed to update lead status:', err)
-            alert('Failed to update status. Please refresh the page.')
+        // 2. Queue the pending move and force the activity panel to open
+        setPendingMove({
+            leadId,
+            oldStatus: draggedLead.status,
+            newStatus: targetStatus,
+        })
+        setActiveLeadForActivity(draggedLead)
+    }
+
+    const handlePanelClose = () => {
+        // If there was a pending move, the user cancelled without logging activity. Revert the UI.
+        if (pendingMove) {
+            setLeads((prevLeads) =>
+                prevLeads.map((lead) =>
+                    lead._id === pendingMove.leadId
+                        ? { ...lead, status: pendingMove.oldStatus }
+                        : lead,
+                ),
+            )
+            setPendingMove(null)
         }
+        setActiveLeadForActivity(null)
+    }
+
+    const handleActivitySuccess = async () => {
+        // Only trigger the status API update if this activity log was part of a stage move
+        if (pendingMove) {
+            try {
+                await api.put(`/leads/${pendingMove.leadId}`, {
+                    status: pendingMove.newStatus,
+                })
+                setPendingMove(null)
+                setActiveLeadForActivity(null) // Auto-close panel after successful move
+            } catch (err) {
+                console.error('Failed to update lead status:', err)
+                alert('Failed to update status. Reverting change.')
+
+                // Revert on API failure
+                setLeads((prevLeads) =>
+                    prevLeads.map((lead) =>
+                        lead._id === pendingMove.leadId
+                            ? { ...lead, status: pendingMove.oldStatus }
+                            : lead,
+                    ),
+                )
+                setPendingMove(null)
+            }
+        }
+    }
+
+    // Allows users to just click a card to view activities without moving it
+    const handleCardClick = (lead) => {
+        setPendingMove(null)
+        setActiveLeadForActivity(lead)
     }
 
     if (isLoading) {
@@ -70,12 +126,22 @@ const Pipeline = () => {
                         Drag and drop leads to update their status.
                     </p>
                 </div>
+
                 <PipelineBoard
                     stages={stages}
                     leads={leads}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
+                    onCardClick={handleCardClick}
+                />
+
+                <LeadActivityPanel
+                    isOpen={!!activeLeadForActivity}
+                    onClose={handlePanelClose}
+                    lead={activeLeadForActivity}
+                    onActivitySuccess={handleActivitySuccess}
+                    isPendingMove={!!pendingMove}
                 />
             </div>
         </div>
