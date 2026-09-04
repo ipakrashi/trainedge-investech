@@ -40,8 +40,9 @@ const Footer = () => {
                             />
                         </h2>
                         <p className='text-gray-400 text-sm leading-relaxed mb-4'>
-                            The integrated Conversion, Operations, and Roster
-                            ecosystem powering modern financial education.
+                            The integrated Conversion, Operations and Roster
+                            ecosystem powering modern financial education
+                            institute.
                         </p>
                     </div>
 
