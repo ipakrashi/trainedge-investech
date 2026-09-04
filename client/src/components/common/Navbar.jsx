@@ -1,4 +1,3 @@
-// src/components/common/Navbar.jsx
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
@@ -38,6 +37,7 @@ const Navbar = () => {
 
     const isAdmin = userRole === 'admin'
     const isFaculty = userRole === 'faculty'
+    const isSales = userRole === 'sales'
     const isAccounts = userRole === 'accounts'
 
     const navClass = ({ isActive }) =>
@@ -70,7 +70,8 @@ const Navbar = () => {
                                 Dashboard
                             </NavLink>
 
-                            {!isFaculty && (
+                            {/* Whitelisted for Admin & Sales Only */}
+                            {(isAdmin || isSales) && (
                                 <>
                                     <NavLink to='/leads' className={navClass}>
                                         Leads
@@ -84,13 +85,15 @@ const Navbar = () => {
                                 </>
                             )}
 
+                            {/* Whitelisted for Admin & Faculty Only */}
                             {(isAdmin || isFaculty) && (
                                 <NavLink to='/students' className={navClass}>
                                     Students
                                 </NavLink>
                             )}
 
-                            {!isFaculty && (
+                            {/* Reports viewable by Admin, Sales, and Accounts (Bifurcated inside the component) */}
+                            {(isAdmin || isSales || isAccounts) && (
                                 <NavLink to='/reports' className={navClass}>
                                     Reports
                                 </NavLink>
@@ -145,20 +148,17 @@ const Navbar = () => {
                                         </Link>
 
                                         {isAdmin && (
-                                            <Link
-                                                to='/admin/payment-modes'
-                                                className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
-                                                onClick={() =>
-                                                    setIsAdminOpen(false)
-                                                }
-                                            >
-                                                <FiCreditCard /> Manage Payment
-                                                Modes
-                                            </Link>
-                                        )}
-
-                                        {isAdmin && (
                                             <>
+                                                <Link
+                                                    to='/admin/payment-modes'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiCreditCard /> Manage
+                                                    Payment Modes
+                                                </Link>
                                                 <div className='px-4 py-2 mt-1 text-xs font-bold text-gray-400 uppercase tracking-wider border-y border-gray-50 mb-1'>
                                                     System Management
                                                 </div>
@@ -274,7 +274,7 @@ const Navbar = () => {
                             Dashboard
                         </NavLink>
 
-                        {!isFaculty && (
+                        {(isAdmin || isSales) && (
                             <>
                                 <NavLink
                                     to='/leads'
@@ -303,7 +303,7 @@ const Navbar = () => {
                             </NavLink>
                         )}
 
-                        {!isFaculty && (
+                        {(isAdmin || isSales || isAccounts) && (
                             <NavLink
                                 to='/reports'
                                 onClick={toggleMenu}
@@ -329,17 +329,15 @@ const Navbar = () => {
                                     <FiDollarSign /> Fee Payments
                                 </Link>
                                 {isAdmin && (
-                                    <Link
-                                        to='/admin/payment-modes'
-                                        onClick={toggleMenu}
-                                        className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
-                                    >
-                                        <FiCreditCard /> Manage Payment Modes
-                                    </Link>
-                                )}
-
-                                {isAdmin && (
                                     <>
+                                        <Link
+                                            to='/admin/payment-modes'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiCreditCard /> Manage Payment
+                                            Modes
+                                        </Link>
                                         <Link
                                             to='/admin/pending-students'
                                             onClick={toggleMenu}

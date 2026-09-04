@@ -1,3 +1,4 @@
+// src/pages/Reports.jsx
 import { useState, useEffect, useMemo } from 'react'
 import {
     FiDollarSign,
@@ -5,27 +6,64 @@ import {
     FiTarget,
     FiAward,
     FiDownload,
+    FiCreditCard,
+    FiBook,
 } from 'react-icons/fi'
 import api from '../api/axios'
 import StatCard from '../components/common/StatCard'
-// Keep your existing child component imports
 import ConversionFunnel from '../components/reports/ConversionFunnel'
 import SourceBreakdown from '../components/reports/SourceBreakdown'
 import RepPerformanceTable from '../components/reports/RepPerformanceTable'
 
 const Reports = () => {
+    // 1. Role Initialization
+    const userInfoString = localStorage.getItem('userInfo')
+    const userInfo = userInfoString ? JSON.parse(userInfoString) : null
+    const userRole = (
+        userInfo?.role?.name ||
+        userInfo?.role ||
+        ''
+    ).toLowerCase()
+
+    const isAdmin = userRole === 'admin'
+    const isSales = userRole === 'sales'
+    const isAccounts = userRole === 'accounts'
+
+    const defaultTab = isSales ? 'sales' : 'finance'
+
+    const [activeTab, setActiveTab] = useState(defaultTab)
     const [timeRange, setTimeRange] = useState('30d')
+
     const [allLeads, setAllLeads] = useState([])
+    const [allPayments, setAllPayments] = useState([])
+    const [allStudents, setAllStudents] = useState([]) // New state for course aggregations
+
     const [isLoading, setIsLoading] = useState(true)
 
-    // Fetch all leads once on mount
+    // 2. Safely parallelize independent payload requests
     useEffect(() => {
         const fetchAllData = async () => {
+            setIsLoading(true)
             try {
-                setIsLoading(true)
-                // Fetch a large dataset to ensure accurate historical reporting
-                const response = await api.get('/leads?limit=5000')
-                setAllLeads(response.data.data || [])
+                // Determine which APIs to fire based on RBAC to prevent 403s
+                const [leadsRes, paymentsRes, studentsRes] =
+                    await Promise.allSettled([
+                        isAdmin || isSales
+                            ? api.get('/leads?limit=5000')
+                            : Promise.resolve({ data: { data: [] } }),
+                        isAdmin || isAccounts
+                            ? api.get('/payments')
+                            : Promise.resolve({ data: { data: [] } }),
+                        isAdmin
+                            ? api.get('/students?limit=5000')
+                            : Promise.resolve({ data: { data: [] } }),
+                    ])
+
+                if (isAdmin || isSales)
+                    setAllLeads(leadsRes.value?.data?.data || [])
+                if (isAdmin || isAccounts)
+                    setAllPayments(paymentsRes.value?.data?.data || [])
+                if (isAdmin) setAllStudents(studentsRes.value?.data?.data || [])
             } catch (error) {
                 console.error('Failed to fetch reporting data:', error)
             } finally {
@@ -33,16 +71,15 @@ const Reports = () => {
             }
         }
         fetchAllData()
-    }, [])
+    }, [isAdmin, isSales, isAccounts])
 
-    // Memoize the data processing so it recalculates instantly when timeRange changes
-    const { filteredLeads, reportData } = useMemo(() => {
-        // 1. Filter by Time Range
+    // 3. Process Sales Data
+    const { filteredLeads, salesReportData } = useMemo(() => {
         const now = new Date()
         const filtered = allLeads.filter((lead) => {
             if (timeRange === 'all') return true
-            const leadDate = new Date(lead.createdAt)
-            const daysDiff = (now - leadDate) / (1000 * 60 * 60 * 24)
+            const daysDiff =
+                (now - new Date(lead.createdAt)) / (1000 * 60 * 60 * 24)
             if (timeRange === '30d') return daysDiff <= 30
             if (timeRange === '90d') return daysDiff <= 90
             if (timeRange === '180d') return daysDiff <= 180
@@ -52,8 +89,6 @@ const Reports = () => {
 
         const totalLeads = filtered.length
         const wonLeads = filtered.filter((l) => l.status === 'ENROLLED')
-
-        // 2. Calculate Top Level Metrics
         const wonRevenue = wonLeads.reduce(
             (sum, l) => sum + (l.estimatedValue || 0),
             0,
@@ -65,19 +100,18 @@ const Reports = () => {
         const avgDealSize =
             wonLeads.length > 0 ? wonRevenue / wonLeads.length : 0
 
-        // Calculate average days from creation to last update (proxy for sales cycle)
-        const cycleDaysSum = wonLeads.reduce((sum, l) => {
-            const created = new Date(l.createdAt)
-            const updated = new Date(l.updatedAt)
-            return sum + (updated - created) / (1000 * 60 * 60 * 24)
-        }, 0)
+        const cycleDaysSum = wonLeads.reduce(
+            (sum, l) =>
+                sum +
+                (new Date(l.updatedAt) - new Date(l.createdAt)) /
+                    (1000 * 60 * 60 * 24),
+            0,
+        )
         const avgCycleDays =
             wonLeads.length > 0
                 ? (cycleDaysSum / wonLeads.length).toFixed(1)
                 : 0
 
-        // 3. Process Funnel Data
-        // Defining broad stages based on your schema
         const contactedCount = filtered.filter(
             (l) => !['NEW', 'JUNK'].includes(l.status),
         ).length
@@ -140,7 +174,6 @@ const Reports = () => {
             },
         ]
 
-        // 4. Process Source Breakdown
         const sourceMap = {}
         filtered.forEach((l) => {
             const src = l.source || 'UNKNOWN'
@@ -157,9 +190,8 @@ const Reports = () => {
             .map((key) => ({
                 name: key.replace('_', ' '),
                 totalLeads: sourceMap[key].count,
-                percentage: Math.round(
-                    (sourceMap[key].count / totalLeads) * 100,
-                ),
+                percentage:
+                    Math.round((sourceMap[key].count / totalLeads) * 100) || 0,
                 revenue: sourceMap[key].revenue,
                 conversionRate:
                     Math.round(
@@ -168,35 +200,31 @@ const Reports = () => {
             }))
             .sort((a, b) => b.totalLeads - a.totalLeads)
 
-        // 5. Process Team Performance
         const teamMap = {}
         filtered.forEach((l) => {
             const name = l.assignedTo
                 ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() ||
                   l.assignedTo.email
                 : 'Unassigned'
-            const role = l.assignedTo ? l.assignedTo.role : 'N/A'
             const id = l.assignedTo ? l.assignedTo._id : 'unassigned'
 
             if (!teamMap[id])
                 teamMap[id] = {
                     id,
                     name,
-                    role,
+                    role: l.assignedTo ? l.assignedTo.role : 'N/A',
                     assigned: 0,
                     closed: 0,
                     revenue: 0,
                 }
             teamMap[id].assigned++
-
             if (l.status === 'ENROLLED') {
                 teamMap[id].closed++
                 teamMap[id].revenue += l.estimatedValue || 0
             }
-            teamMap[id].winRate = (
-                (teamMap[id].closed / teamMap[id].assigned) *
-                100
-            ).toFixed(1)
+            teamMap[id].winRate = teamMap[id].assigned
+                ? ((teamMap[id].closed / teamMap[id].assigned) * 100).toFixed(1)
+                : 0
         })
 
         const team = Object.values(teamMap).sort(
@@ -205,7 +233,7 @@ const Reports = () => {
 
         return {
             filteredLeads: filtered,
-            reportData: {
+            salesReportData: {
                 metrics: {
                     wonRevenue: `₹${wonRevenue.toLocaleString('en-IN')}`,
                     winRate: `${winRate}%`,
@@ -219,45 +247,150 @@ const Reports = () => {
         }
     }, [allLeads, timeRange])
 
-    // CSV Export Logic
-    const handleExportCSV = () => {
-        if (!filteredLeads.length)
-            return alert('No data to export for this time range.')
+    // 4. Process Finance Data
+    const { filteredPayments, financeReportData } = useMemo(() => {
+        const now = new Date()
+        const filtered = allPayments.filter((payment) => {
+            if (timeRange === 'all') return true
+            const daysDiff =
+                (now - new Date(payment.paymentDate)) / (1000 * 60 * 60 * 24)
+            if (timeRange === '30d') return daysDiff <= 30
+            if (timeRange === '90d') return daysDiff <= 90
+            if (timeRange === '180d') return daysDiff <= 180
+            if (timeRange === '1y') return daysDiff <= 365
+            return true
+        })
 
+        const totalRevenue = filtered.reduce((sum, p) => sum + p.amount, 0)
+        const avgPayment = filtered.length ? totalRevenue / filtered.length : 0
+
+        return {
+            filteredPayments: filtered,
+            financeReportData: {
+                totalRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`,
+                transactionCount: filtered.length,
+                avgPayment: `₹${Math.round(avgPayment).toLocaleString('en-IN')}`,
+            },
+        }
+    }, [allPayments, timeRange])
+
+    // 5. Process Course Enrollment Data
+    const { filteredStudents, courseReportData } = useMemo(() => {
+        if (!isAdmin)
+            return {
+                filteredStudents: [],
+                courseReportData: { totalEnrollments: 0, courses: [] },
+            }
+
+        const now = new Date()
+        const filtered = allStudents.filter((student) => {
+            if (timeRange === 'all') return true
+            const daysDiff =
+                (now - new Date(student.createdAt)) / (1000 * 60 * 60 * 24)
+            if (timeRange === '30d') return daysDiff <= 30
+            if (timeRange === '90d') return daysDiff <= 90
+            if (timeRange === '180d') return daysDiff <= 180
+            if (timeRange === '1y') return daysDiff <= 365
+            return true
+        })
+
+        const courseMap = {}
+        let totalEnrollments = 0
+
+        filtered.forEach((s) => {
+            ;(s.enrolledCourses || []).forEach((c) => {
+                const cTitle = c.courseTitle || 'Unknown Course'
+                if (!courseMap[cTitle]) {
+                    courseMap[cTitle] = { title: cTitle, count: 0, revenue: 0 }
+                }
+                courseMap[cTitle].count += 1
+                courseMap[cTitle].revenue += c.fee || 0
+                totalEnrollments += 1
+            })
+        })
+
+        const courses = Object.values(courseMap).sort(
+            (a, b) => b.count - a.count,
+        )
+
+        return {
+            filteredStudents: filtered,
+            courseReportData: { totalEnrollments, courses },
+        }
+    }, [allStudents, timeRange, isAdmin])
+
+    // 6. CSV Export Logics
+    const handleExportSalesCSV = () => {
+        if (!filteredLeads.length) return alert('No data to export.')
         const headers = [
             'Full Name',
             'Email',
             'Phone',
-            'City',
             'Source',
             'Status',
-            'Experience',
             'Estimated Value',
             'Created At',
         ]
-
         const csvRows = filteredLeads.map((lead) =>
             [
                 lead.fullName || '',
                 lead.email || '',
                 lead.phone || '',
-                lead.city || '',
                 lead.source || '',
                 lead.status || '',
-                lead.experienceLevel || '',
                 lead.estimatedValue || 0,
                 new Date(lead.createdAt).toLocaleDateString('en-IN'),
             ]
                 .map((val) => `"${String(val).replace(/"/g, '""')}"`)
                 .join(','),
-        ) // Escape quotes
+        )
+        triggerDownload(headers, csvRows, 'sales_pipeline')
+    }
 
-        const csvContent = [headers.join(','), ...csvRows].join('\n')
+    const handleExportFinanceCSV = () => {
+        if (!filteredPayments.length) return alert('No data to export.')
+        const headers = [
+            'Transaction ID',
+            'Student',
+            'Amount',
+            'Payment Mode',
+            'Date',
+        ]
+        const csvRows = filteredPayments.map((p) =>
+            [
+                p.transactionId || '',
+                p.student?.fullName || 'Unknown',
+                p.amount || 0,
+                p.paymentMode?.label || '',
+                new Date(p.paymentDate).toLocaleDateString('en-IN'),
+            ]
+                .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+                .join(','),
+        )
+        triggerDownload(headers, csvRows, 'financial_ledger')
+    }
+
+    const handleExportCoursesCSV = () => {
+        if (!courseReportData.courses.length) return alert('No data to export.')
+        const headers = [
+            'Course Title',
+            'Total Student Enrollments',
+            'Expected Course Revenue',
+        ]
+        const csvRows = courseReportData.courses.map((c) =>
+            [c.title, c.count, c.revenue]
+                .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+                .join(','),
+        )
+        triggerDownload(headers, csvRows, 'course_enrollments')
+    }
+
+    const triggerDownload = (headers, rows, filename) => {
+        const csvContent = [headers.join(','), ...rows].join('\n')
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
         const link = document.createElement('a')
-
         link.href = URL.createObjectURL(blob)
-        link.download = `trainEdge_leads_report_${timeRange}.csv`
+        link.download = `trainEdge_${filename}_${timeRange}.csv`
         link.click()
         URL.revokeObjectURL(link.href)
     }
@@ -273,8 +406,8 @@ const Reports = () => {
     return (
         <div className='bg-gray-50 min-h-screen py-8'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                {/* Inline Reports Header with Time Filter & CSV Export */}
-                <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100'>
+                {/* Header & Controls */}
+                <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100'>
                     <div>
                         <h1 className='text-2xl font-bold text-gray-900'>
                             Analytics & Reports
@@ -282,9 +415,13 @@ const Reports = () => {
                         <p className='text-sm text-gray-500 mt-1'>
                             Showing data for{' '}
                             <span className='font-semibold text-blue-600'>
-                                {filteredLeads.length}
+                                {activeTab === 'sales' && filteredLeads.length}
+                                {activeTab === 'finance' &&
+                                    filteredPayments.length}
+                                {activeTab === 'courses' &&
+                                    courseReportData.totalEnrollments}
                             </span>{' '}
-                            leads.
+                            records.
                         </p>
                     </div>
 
@@ -292,7 +429,7 @@ const Reports = () => {
                         <select
                             value={timeRange}
                             onChange={(e) => setTimeRange(e.target.value)}
-                            className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-gray-50'
+                            className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 bg-gray-50'
                         >
                             <option value='30d'>Last 30 Days</option>
                             <option value='90d'>Last 90 Days</option>
@@ -300,53 +437,176 @@ const Reports = () => {
                             <option value='1y'>Last Year</option>
                             <option value='all'>All Time</option>
                         </select>
-
                         <button
-                            onClick={handleExportCSV}
-                            className='flex items-center justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors'
+                            onClick={() => {
+                                if (activeTab === 'sales')
+                                    handleExportSalesCSV()
+                                else if (activeTab === 'finance')
+                                    handleExportFinanceCSV()
+                                else if (activeTab === 'courses')
+                                    handleExportCoursesCSV()
+                            }}
+                            className='flex items-center justify-center py-2 px-4 rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors'
                         >
-                            <FiDownload className='mr-2' />
-                            Export CSV
+                            <FiDownload className='mr-2' /> Export CSV
                         </button>
                     </div>
                 </div>
 
-                {/* High-Level Conversion KPI Cards */}
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
-                    <StatCard
-                        title='Total Closed Won'
-                        value={reportData.metrics.wonRevenue}
-                        icon={FiDollarSign}
-                        colorClass='bg-green-50 text-green-600'
-                    />
-                    <StatCard
-                        title='Opportunity Win Rate'
-                        value={reportData.metrics.winRate}
-                        icon={FiTarget}
-                        colorClass='bg-blue-50 text-blue-600'
-                    />
-                    <StatCard
-                        title='Average Deal Size'
-                        value={reportData.metrics.avgDealSize}
-                        icon={FiAward}
-                        colorClass='bg-purple-50 text-purple-600'
-                    />
-                    <StatCard
-                        title='Sales Cycle (Days)'
-                        value={reportData.metrics.avgCycleDays}
-                        icon={FiTrendingUp}
-                        colorClass='bg-orange-50 text-orange-600'
-                    />
-                </div>
+                {/* Admin Tab Navigation */}
+                {isAdmin && (
+                    <div className='flex gap-4 mb-6 overflow-x-auto pb-2'>
+                        <button
+                            onClick={() => setActiveTab('finance')}
+                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'finance' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            Financial Reporting
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('sales')}
+                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'sales' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            Sales Pipeline Reporting
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('courses')}
+                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'courses' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            Course Enrollment Reporting
+                        </button>
+                    </div>
+                )}
 
-                {/* Funnel & Channel Breakdown Grid */}
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
-                    <ConversionFunnel funnelData={reportData.funnel} />
-                    <SourceBreakdown sources={reportData.sources} />
-                </div>
+                {/* ========================================== */}
+                {/* FINANCIAL REPORTS VIEW (Admin / Accounts)  */}
+                {/* ========================================== */}
+                {activeTab === 'finance' && (
+                    <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
+                        <StatCard
+                            title='Revenue Collected'
+                            value={financeReportData.totalRevenue}
+                            icon={FiDollarSign}
+                            colorClass='bg-green-50 text-green-600'
+                        />
+                        <StatCard
+                            title='Transactions'
+                            value={financeReportData.transactionCount}
+                            icon={FiCreditCard}
+                            colorClass='bg-blue-50 text-blue-600'
+                        />
+                        <StatCard
+                            title='Average Payment Size'
+                            value={financeReportData.avgPayment}
+                            icon={FiAward}
+                            colorClass='bg-purple-50 text-purple-600'
+                        />
+                    </div>
+                )}
 
-                {/* Team Performance Table */}
-                <RepPerformanceTable teamData={reportData.team} />
+                {/* ========================================== */}
+                {/* SALES REPORTS VIEW (Admin / Sales)         */}
+                {/* ========================================== */}
+                {activeTab === 'sales' && (
+                    <>
+                        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+                            <StatCard
+                                title='Total Closed Won'
+                                value={salesReportData.metrics.wonRevenue}
+                                icon={FiDollarSign}
+                                colorClass='bg-green-50 text-green-600'
+                            />
+                            <StatCard
+                                title='Opportunity Win Rate'
+                                value={salesReportData.metrics.winRate}
+                                icon={FiTarget}
+                                colorClass='bg-blue-50 text-blue-600'
+                            />
+                            <StatCard
+                                title='Average Deal Size'
+                                value={salesReportData.metrics.avgDealSize}
+                                icon={FiAward}
+                                colorClass='bg-purple-50 text-purple-600'
+                            />
+                            <StatCard
+                                title='Sales Cycle (Days)'
+                                value={salesReportData.metrics.avgCycleDays}
+                                icon={FiTrendingUp}
+                                colorClass='bg-orange-50 text-orange-600'
+                            />
+                        </div>
+                        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
+                            <ConversionFunnel
+                                funnelData={salesReportData.funnel}
+                            />
+                            <SourceBreakdown
+                                sources={salesReportData.sources}
+                            />
+                        </div>
+                        <RepPerformanceTable teamData={salesReportData.team} />
+                    </>
+                )}
+
+                {/* ========================================== */}
+                {/* COURSES REPORTS VIEW (Admin Only)          */}
+                {/* ========================================== */}
+                {activeTab === 'courses' && isAdmin && (
+                    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+                        <div className='px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center'>
+                            <h3 className='font-bold text-gray-900 flex items-center gap-2'>
+                                <FiBook className='text-blue-600' /> Course-wise
+                                Enrollment Breakdown
+                            </h3>
+                            <span className='bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full'>
+                                {courseReportData.totalEnrollments} Total
+                                Subject Enrollments
+                            </span>
+                        </div>
+                        <div className='overflow-x-auto'>
+                            <table className='w-full text-left'>
+                                <thead>
+                                    <tr className='text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100'>
+                                        <th className='px-6 py-4 font-medium'>
+                                            Course Title
+                                        </th>
+                                        <th className='px-6 py-4 font-medium text-right'>
+                                            Students Enrolled
+                                        </th>
+                                        <th className='px-6 py-4 font-medium text-right'>
+                                            Expected Course Revenue
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className='divide-y divide-gray-100'>
+                                    {courseReportData.courses.map((c, i) => (
+                                        <tr
+                                            key={i}
+                                            className='hover:bg-gray-50 transition-colors'
+                                        >
+                                            <td className='px-6 py-4 font-semibold text-gray-900'>
+                                                {c.title}
+                                            </td>
+                                            <td className='px-6 py-4 text-right text-gray-700'>
+                                                {c.count}
+                                            </td>
+                                            <td className='px-6 py-4 text-right font-medium text-green-600'>
+                                                ₹
+                                                {c.revenue.toLocaleString(
+                                                    'en-IN',
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {!courseReportData.courses.length && (
+                                <div className='p-8 text-center text-gray-500'>
+                                    No student course enrollments found for this
+                                    period.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )

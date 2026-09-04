@@ -1,9 +1,9 @@
 import studentModel from '../models/studentModel.js'
 import userModel from '../models/userModel.js'
 
-// @desc    Get all students (Scoped by Admin vs Faculty)
+// @desc    Get all students (Scoped by Admin, Faculty, or Accounts)
 // @route   GET /api/students
-// @access  Private (Admin/Faculty)
+// @access  Private (Admin/Faculty/Accounts)
 export const getStudents = async (req, res) => {
     try {
         const roleName = (
@@ -13,12 +13,13 @@ export const getStudents = async (req, res) => {
         ).toLowerCase()
         const isAdmin = roleName === 'admin'
         const isFaculty = roleName === 'faculty'
+        const isAccounts = roleName === 'accounts'
 
-        // Reject Counselors entirely from the Delivery module
-        if (!isAdmin && !isFaculty) {
+        // Allow Admin, Faculty, and Accounts; reject others
+        if (!isAdmin && !isFaculty && !isAccounts) {
             return res.status(403).json({
                 success: false,
-                message: 'Unauthorized. Academic access only.',
+                message: 'Unauthorized. Academic or Financial access only.',
             })
         }
 
@@ -29,6 +30,7 @@ export const getStudents = async (req, res) => {
             query.assignedFaculty = req.user._id
             query.status = { $ne: 'PENDING_ASSIGNMENT' } // Faculty don't see unmapped students
         }
+        // Admin and Accounts have global visibility over active student payment ledgers
 
         const students = await studentModel
             .find(query)
