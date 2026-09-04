@@ -25,7 +25,7 @@ const RepPerformanceTable = ({ teamData }) => {
                         </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-100 text-sm'>
-                        {teamData.map((rep) => (
+                        {teamData?.map((rep) => (
                             <tr
                                 key={rep.id}
                                 className='hover:bg-gray-50 transition-colors'
@@ -56,7 +56,7 @@ const RepPerformanceTable = ({ teamData }) => {
                                     </span>
                                 </td>
                                 <td className='px-6 py-4 text-right font-bold text-gray-900'>
-                                    ₹{rep.revenue.toLocaleString()}
+                                    ₹{rep.revenue.toLocaleString('en-IN')}
                                 </td>
                             </tr>
                         ))}

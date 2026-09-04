@@ -1,0 +1,211 @@
+import leadModel from '../models/leadModel.js'
+import studentModel from '../models/studentModel.js'
+import userModel from '../models/userModel.js'
+import asyncHandler from 'express-async-handler'
+
+// @desc    Get role-scoped analytics dashboard data
+// @route   GET /api/analytics
+// @access  Private
+export const getAnalyticsData = asyncHandler(async (req, res) => {
+    const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
+    const isAdmin = roleName === 'admin'
+    const isFaculty = roleName === 'faculty'
+
+    // 1. FACULTY ANALYTICS VIEW
+    if (isFaculty) {
+        const students = await studentModel
+            .find({ assignedFaculty: req.user._id })
+            .populate('enrolledCourses', 'courseTitle fee')
+
+        const totalStudents = students.length
+        const activeStudents = students.filter(
+            (s) => s.status === 'ACTIVE',
+        ).length
+
+        let totalAssignedFees = 0
+        let totalCollectedFees = 0
+        students.forEach((s) => {
+            totalAssignedFees += s.totalFee || 0
+            totalCollectedFees += s.paidAmount || 0
+        })
+
+        return res.status(200).json({
+            success: true,
+            role: 'faculty',
+            data: {
+                totalStudents,
+                activeStudents,
+                totalAssignedFees,
+                totalCollectedFees,
+                collectionRate: totalAssignedFees
+                    ? ((totalCollectedFees / totalAssignedFees) * 100).toFixed(
+                          1,
+                      )
+                    : 0,
+                studentsList: students,
+            },
+        })
+    }
+
+    // 2. SALES / COUNSELOR ANALYTICS VIEW
+    if (!isAdmin) {
+        const leads = await leadModel
+            .find({ assignedTo: req.user._id })
+            .populate('interestedCourses', 'courseTitle fee')
+            .sort({ createdAt: -1 })
+
+        const totalLeads = leads.length
+        const activePipeline = leads
+            .filter((l) => !['LOST', 'JUNK', 'ENROLLED'].includes(l.status))
+            .reduce((sum, l) => sum + (l.estimatedValue || 0), 0)
+
+        const enrolledLeads = leads.filter(
+            (l) => l.status === 'ENROLLED',
+        ).length
+        const conversionRate =
+            totalLeads === 0
+                ? 0
+                : ((enrolledLeads / totalLeads) * 100).toFixed(1)
+
+        const oneWeekAgo = new Date()
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+        const newThisWeek = leads.filter(
+            (l) => new Date(l.createdAt) > oneWeekAgo,
+        ).length
+
+        const endOfToday = new Date()
+        endOfToday.setHours(23, 59, 59, 999)
+        const pendingFollowUps = leads.filter((l) => {
+            if (!l.nextFollowUpDate) return false
+            if (['LOST', 'JUNK', 'ENROLLED'].includes(l.status)) return false
+            return new Date(l.nextFollowUpDate) <= endOfToday
+        })
+
+        return res.status(200).json({
+            success: true,
+            role: 'sales',
+            data: {
+                totalLeads,
+                activePipeline: `₹${activePipeline.toLocaleString('en-IN')}`,
+                conversionRate: `${conversionRate}%`,
+                newThisWeek,
+                recentLeads: leads.slice(0, 5),
+                pendingFollowUps,
+            },
+        })
+    }
+
+    // 3. ADMIN GLOBAL OVERSIGHT VIEW
+    const allLeads = await leadModel
+        .find({})
+        .populate('interestedCourses', 'courseTitle fee')
+        .populate('assignedTo', 'firstName lastName email')
+
+    const totalLeads = allLeads.length
+    const activePipeline = allLeads
+        .filter((l) => !['LOST', 'JUNK', 'ENROLLED'].includes(l.status))
+        .reduce((sum, l) => sum + (l.estimatedValue || 0), 0)
+
+    const enrolledLeads = allLeads.filter((l) => l.status === 'ENROLLED').length
+    const conversionRate =
+        totalLeads === 0 ? 0 : ((enrolledLeads / totalLeads) * 100).toFixed(1)
+
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    const newThisWeek = allLeads.filter(
+        (l) => new Date(l.createdAt) > oneWeekAgo,
+    ).length
+
+    // Funnel calculation
+    const statusGroups = {}
+    allLeads.forEach((l) => {
+        statusGroups[l.status] = (statusGroups[l.status] || 0) + 1
+    })
+
+    const funnelData = Object.keys(statusGroups).map((status) => {
+        const count = statusGroups[status]
+        return {
+            label: status,
+            count,
+            rate: totalLeads ? ((count / totalLeads) * 100).toFixed(1) : 0,
+        }
+    })
+
+    // Source breakdown
+    const sourceMap = {}
+    allLeads.forEach((l) => {
+        const src = l.source || 'OTHER'
+        if (!sourceMap[src])
+            sourceMap[src] = { count: 0, revenue: 0, enrolled: 0 }
+        sourceMap[src].count += 1
+        if (l.status === 'ENROLLED') {
+            sourceMap[src].enrolled += 1
+            sourceMap[src].revenue += l.estimatedValue || 0
+        }
+    })
+
+    const sources = Object.keys(sourceMap).map((name) => ({
+        name,
+        totalLeads: sourceMap[name].count,
+        revenue: sourceMap[name].revenue,
+        conversionRate: sourceMap[name].count
+            ? (
+                  (sourceMap[name].enrolled / sourceMap[name].count) *
+                  100
+              ).toFixed(1)
+            : 0,
+        percentage: totalLeads
+            ? ((sourceMap[name].count / totalLeads) * 100).toFixed(1)
+            : 0,
+    }))
+
+    // Rep performance metrics
+    const users = await userModel.find({}).populate('role')
+    const salesReps = users.filter((u) => {
+        const r = (u.role?.name || u.role || '').toLowerCase()
+        return (
+            r === 'sales' ||
+            r === 'manager' ||
+            r === 'counselor' ||
+            r === 'admin'
+        )
+    })
+
+    const teamData = salesReps.map((rep) => {
+        const repLeads = allLeads.filter(
+            (l) => l.assignedTo?._id?.toString() === rep._id.toString(),
+        )
+        const assigned = repLeads.length
+        const closed = repLeads.filter((l) => l.status === 'ENROLLED').length
+        const revenue = repLeads
+            .filter((l) => l.status === 'ENROLLED')
+            .reduce((sum, l) => sum + (l.estimatedValue || 0), 0)
+        const winRate =
+            assigned > 0 ? ((closed / assigned) * 100).toFixed(1) : 0
+
+        return {
+            id: rep._id,
+            name: `${rep.firstName} ${rep.lastName}`,
+            role: rep.role?.name || 'Staff',
+            assigned,
+            closed,
+            winRate: Number(winRate),
+            revenue,
+        }
+    })
+
+    res.status(200).json({
+        success: true,
+        role: 'admin',
+        data: {
+            totalLeads,
+            activePipeline: `₹${activePipeline.toLocaleString('en-IN')}`,
+            conversionRate: `${conversionRate}%`,
+            newThisWeek,
+            recentLeads: allLeads.slice(0, 5),
+            funnelData,
+            sources,
+            teamData,
+        },
+    })
+})

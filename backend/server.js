@@ -11,6 +11,7 @@ import sourceRoutes from './routes/sourceRoutes.js'
 import statusRoutes from './routes/statusRoutes.js'
 import experienceRoutes from './routes/experienceRoutes.js'
 import studentRoutes from './routes/studentRoutes.js' // <-- Added Student Routes Import
+import analyticsRoutes from './routes/analyticsRoutes.js'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -40,6 +41,7 @@ app.use('/api/sources', sourceRoutes)
 app.use('/api/statuses', statusRoutes)
 app.use('/api/experiences', experienceRoutes)
 app.use('/api/students', studentRoutes) // <-- Mounted Student Routes Endpoint
+app.use('/api/analytics', analyticsRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {

@@ -56,13 +56,25 @@ export const mapStudentFaculty = async (req, res) => {
     try {
         const { assignedFaculty, enrolledCourses, totalFee } = req.body
 
-        // Ensure the assigned user is actually a faculty member
-        const facultyCheck = await userModel.findById(assignedFaculty)
-        if (
-            !facultyCheck ||
-            (facultyCheck.role?.name || facultyCheck.role).toLowerCase() !==
-                'faculty'
-        ) {
+        // Ensure the assigned user is actually a faculty member (Safely handle populated or unpopulated role)
+        const facultyCheck = await userModel
+            .findById(assignedFaculty)
+            .populate('role')
+
+        if (!facultyCheck) {
+            return res.status(400).json({
+                success: false,
+                message: 'Assigned faculty user not found.',
+            })
+        }
+
+        // Safely extract the role name string regardless of schema population state
+        const facultyRoleName = (
+            facultyCheck.role?.name ||
+            (typeof facultyCheck.role === 'string' ? facultyCheck.role : '')
+        ).toLowerCase()
+
+        if (facultyRoleName !== 'faculty') {
             return res.status(400).json({
                 success: false,
                 message: 'Selected user is not valid Faculty.',

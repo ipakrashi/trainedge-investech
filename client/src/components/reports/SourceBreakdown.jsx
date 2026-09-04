@@ -9,7 +9,7 @@ const SourceBreakdown = ({ sources }) => {
             </p>
 
             <div className='space-y-5'>
-                {sources.map((src) => (
+                {sources?.map((src) => (
                     <div key={src.name} className='space-y-2'>
                         <div className='flex justify-between items-center text-sm'>
                             <span className='font-medium text-gray-800'>
@@ -17,7 +17,7 @@ const SourceBreakdown = ({ sources }) => {
                             </span>
                             <div className='text-right'>
                                 <span className='font-bold text-gray-900'>
-                                    ₹{src.revenue.toLocaleString()}
+                                    ₹{src.revenue.toLocaleString('en-IN')}
                                 </span>
                                 <span className='text-gray-400 text-xs ml-2'>
                                     ({src.conversionRate}% conv.)
