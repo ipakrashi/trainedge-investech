@@ -92,7 +92,7 @@ const Navbar = () => {
                                 </NavLink>
                             )}
 
-                            {/* Reports viewable by Admin, Sales, and Accounts (Bifurcated inside the component) */}
+                            {/* Reports viewable by Admin, Sales, and Accounts */}
                             {(isAdmin || isSales || isAccounts) && (
                                 <NavLink to='/reports' className={navClass}>
                                     Reports
@@ -262,10 +262,10 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* Mobile Navigation Menu Drawer */}
+            {/* Mobile Navigation Menu Drawer - Fixed with max height and internal vertical scroll */}
             {isOpen && (
-                <div className='md:hidden bg-white border-t border-gray-100 shadow-lg absolute w-full left-0 z-50'>
-                    <div className='px-4 pt-2 pb-4 space-y-1 flex flex-col'>
+                <div className='md:hidden bg-white border-t border-gray-100 shadow-xl absolute w-full left-0 z-50 max-h-[calc(100vh-4rem)] overflow-y-auto'>
+                    <div className='px-4 pt-3 pb-8 space-y-1 flex flex-col'>
                         <NavLink
                             to='/'
                             onClick={toggleMenu}
@@ -400,11 +400,13 @@ const Navbar = () => {
                         ) : null}
 
                         <div className='border-t border-gray-100 my-2 pt-2'></div>
-                        <button className='flex items-center text-gray-600 hover:text-blue-600 py-2 w-full text-left'>
-                            <FiUser className='text-xl mr-3' />
-                            {displayName}
-                        </button>
-                        <LogoutButton />
+                        <div className='flex items-center text-gray-600 py-2 px-1 font-medium'>
+                            <FiUser className='text-xl mr-3 text-gray-400' />
+                            <span>{displayName}</span>
+                        </div>
+                        <div className='pt-1'>
+                            <LogoutButton />
+                        </div>
                     </div>
                 </div>
             )}
