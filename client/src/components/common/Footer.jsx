@@ -1,3 +1,4 @@
+// src/components/common/Footer.jsx
 import { Link } from 'react-router-dom'
 import {
     FiMail,
@@ -11,8 +12,21 @@ import {
 const Footer = () => {
     const currentYear = new Date().getFullYear()
 
+    // 1. Retrieve user data from local storage
+    const userInfoString = localStorage.getItem('userInfo')
+    const userInfo = userInfoString ? JSON.parse(userInfoString) : null
+
+    // 2. Safely parse the role
+    const userRole = (
+        userInfo?.role?.name ||
+        userInfo?.role ||
+        ''
+    ).toLowerCase()
+    const isAdmin = userRole === 'admin'
+    const isFaculty = userRole === 'faculty'
+
     return (
-        <footer className='bg-gray-900 text-gray-300 py-10'>
+        <footer className='bg-gray-900 text-gray-300 py-10 mt-auto'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                 {/* Top Section: Grid Layout */}
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8'>
@@ -20,56 +34,70 @@ const Footer = () => {
                     <div>
                         <h2 className='text-2xl font-bold text-white mb-4 tracking-tight'>
                             <img
-                                src={'Logo_final-NOBG.png'}
+                                src={'/Logo_final-NOBG.png'}
                                 alt='Logo'
                                 className='w-20'
                             />
-                            {/* Investech LMS */}
                         </h2>
                         <p className='text-gray-400 text-sm leading-relaxed mb-4'>
-                            Streamlining lead tracking, pipeline management, and
-                            conversion analytics for modern sales teams.
+                            The integrated Conversion, Operations, and Roster
+                            ecosystem powering modern financial education.
                         </p>
                     </div>
 
-                    {/* Quick Links */}
+                    {/* Quick Links (Dynamic based on Role) */}
                     <div>
                         <h3 className='text-lg font-semibold text-white mb-4'>
                             Product
                         </h3>
                         <ul className='space-y-2 text-sm'>
-                            <li>
-                                <Link
-                                    to='/dashboard'
-                                    className='hover:text-blue-400 transition-colors'
-                                >
-                                    Dashboard
-                                </Link>
-                            </li>
-                            <li>
-                                <Link
-                                    to='/leads'
-                                    className='hover:text-blue-400 transition-colors'
-                                >
-                                    Lead Management
-                                </Link>
-                            </li>
-                            <li>
-                                <Link
-                                    to='/pipeline'
-                                    className='hover:text-blue-400 transition-colors'
-                                >
-                                    Sales Pipeline
-                                </Link>
-                            </li>
-                            <li>
-                                <Link
-                                    to='/reports'
-                                    className='hover:text-blue-400 transition-colors'
-                                >
-                                    Analytics & Reports
-                                </Link>
-                            </li>
+                            {/* Counselors and Admins see Pipeline */}
+                            {!isFaculty && (
+                                <li>
+                                    <Link
+                                        to='/pipeline'
+                                        className='hover:text-blue-400 transition-colors'
+                                    >
+                                        Pipeline Dashboard
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* ONLY Admins see Pending Enrollments */}
+                            {isAdmin && (
+                                <li>
+                                    <Link
+                                        to='/admin/pending-students'
+                                        className='hover:text-blue-400 transition-colors'
+                                    >
+                                        Pending Enrollments
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Admins and Faculty see the Roster */}
+                            {(isAdmin || isFaculty) && (
+                                <li>
+                                    <Link
+                                        to='/students'
+                                        className='hover:text-blue-400 transition-colors'
+                                    >
+                                        Student Roster
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Counselors and Admins see Analytics */}
+                            {!isFaculty && (
+                                <li>
+                                    <Link
+                                        to='/reports'
+                                        className='hover:text-blue-400 transition-colors'
+                                    >
+                                        Institute Analytics
+                                    </Link>
+                                </li>
+                            )}
                         </ul>
                     </div>
 
@@ -135,10 +163,10 @@ const Footer = () => {
                             <li className='flex items-center'>
                                 <FiMail className='text-lg mr-2 flex-shrink-0 text-blue-400' />
                                 <a
-                                    href='mailto:support@investech.com'
+                                    href='mailto:support@trainedge.com'
                                     className='hover:text-blue-400 transition-colors'
                                 >
-                                    support@investech.com
+                                    support@trainedge.com
                                 </a>
                             </li>
                         </ul>
@@ -148,7 +176,7 @@ const Footer = () => {
                 {/* Bottom Section: Copyright & Socials */}
                 <div className='border-t border-gray-700 pt-6 flex flex-col md:flex-row justify-between items-center'>
                     <p className='text-sm text-gray-500 mb-4 md:mb-0'>
-                        &copy; {currentYear} Investech Solutions. All rights
+                        &copy; {currentYear} trainEdge InvesTech. All rights
                         reserved.
                     </p>
 

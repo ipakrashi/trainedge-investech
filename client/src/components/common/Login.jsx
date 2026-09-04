@@ -43,8 +43,15 @@ const Login = () => {
         <div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'>
             <div className='max-w-md w-full bg-white p-8 rounded-xl shadow-sm border border-gray-100'>
                 <div className='text-center mb-8'>
+                    <div className='flex items-center justify-center'>
+                        <img
+                            src='/Logo_final-NOBG.png'
+                            alt='Logo'
+                            className='h-15'
+                        />
+                    </div>
                     <h2 className='text-3xl font-bold text-gray-900 tracking-tight'>
-                        Investech LMS
+                        trainEdge CORe
                     </h2>
                     <p className='mt-2 text-sm text-gray-600'>
                         Sign in to your account
