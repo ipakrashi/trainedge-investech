@@ -137,7 +137,107 @@ const Dashboard = () => {
                             progression.
                         </p>
                     </div>
-                    {/* Simplified for brevity (keep exact code from previous version here) */}
+
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+                        <StatCard
+                            title='Total Students'
+                            value={totalStudents || 0}
+                            icon={FiUsers}
+                            colorClass='bg-blue-50 text-blue-600'
+                        />
+                        <StatCard
+                            title='Active Roster'
+                            value={activeStudents || 0}
+                            icon={FiCheckCircle}
+                            colorClass='bg-green-50 text-green-600'
+                        />
+                        <StatCard
+                            title='Collected Revenue'
+                            value={`₹${(totalCollectedFees || 0).toLocaleString('en-IN')}`}
+                            icon={FiDollarSign}
+                            colorClass='bg-purple-50 text-purple-600'
+                        />
+                        <StatCard
+                            title='Collection Rate'
+                            value={`${collectionRate || 0}%`}
+                            icon={FiTrendingUp}
+                            colorClass='bg-orange-50 text-orange-600'
+                        />
+                    </div>
+
+                    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden p-6'>
+                        <h3 className='font-bold text-gray-900 mb-4'>
+                            Assigned Student Delivery Roster
+                        </h3>
+                        <div className='overflow-x-auto'>
+                            <table className='w-full text-left border-collapse'>
+                                <thead>
+                                    <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b'>
+                                        <th className='px-6 py-3 font-medium'>
+                                            Student Name
+                                        </th>
+                                        <th className='px-6 py-3 font-medium'>
+                                            Email / Phone
+                                        </th>
+                                        <th className='px-6 py-3 font-medium'>
+                                            Courses
+                                        </th>
+                                        <th className='px-6 py-3 text-right font-medium'>
+                                            Payment Status
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className='divide-y divide-gray-100 text-sm'>
+                                    {(studentsList || []).map((s) => (
+                                        <tr
+                                            key={s._id}
+                                            className='hover:bg-gray-50'
+                                        >
+                                            <td className='px-6 py-4 font-medium text-gray-900'>
+                                                {s.fullName}
+                                            </td>
+                                            <td className='px-6 py-4 text-gray-500'>
+                                                <div>{s.email}</div>
+                                                <div>{s.phone}</div>
+                                            </td>
+                                            <td className='px-6 py-4'>
+                                                {(s.enrolledCourses || []).map(
+                                                    (c) => (
+                                                        <span
+                                                            key={c._id}
+                                                            className='bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs mr-1 inline-block'
+                                                        >
+                                                            {c.courseTitle}
+                                                        </span>
+                                                    ),
+                                                )}
+                                            </td>
+                                            <td className='px-6 py-4 text-right'>
+                                                <span
+                                                    className={`px-2 py-1 rounded text-xs font-bold ${s.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : s.paymentStatus === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}
+                                                >
+                                                    {s.paymentStatus} (₹
+                                                    {s.paidAmount}/₹{s.totalFee}
+                                                    )
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {(!studentsList ||
+                                        studentsList.length === 0) && (
+                                        <tr>
+                                            <td
+                                                colSpan='4'
+                                                className='text-center py-8 text-gray-500'
+                                            >
+                                                No active students assigned.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         )
@@ -166,7 +266,42 @@ const Dashboard = () => {
                             Track your active pipeline velocity and daily tasks.
                         </p>
                     </div>
-                    {/* Simplified for brevity (keep exact code from previous version here) */}
+
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+                        <StatCard
+                            title='My Assigned Leads'
+                            value={totalLeads || 0}
+                            icon={FiUsers}
+                            colorClass='bg-blue-50 text-blue-600'
+                        />
+                        <StatCard
+                            title='Active Pipeline'
+                            value={activePipeline || 0}
+                            icon={FiDollarSign}
+                            colorClass='bg-green-50 text-green-600'
+                        />
+                        <StatCard
+                            title='Conversion Rate'
+                            value={conversionRate || '0%'}
+                            icon={FiTrendingUp}
+                            colorClass='bg-purple-50 text-purple-600'
+                        />
+                        <StatCard
+                            title='New This Week'
+                            value={newThisWeek || 0}
+                            icon={FiActivity}
+                            colorClass='bg-orange-50 text-orange-600'
+                        />
+                    </div>
+
+                    <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+                        <div className='lg:col-span-2 space-y-8'>
+                            <RecentLeadsTable leads={recentLeads || []} />
+                        </div>
+                        <div className='space-y-8'>
+                            <FollowUpList tasks={pendingFollowUps || []} />
+                        </div>
+                    </div>
                 </div>
             </div>
         )

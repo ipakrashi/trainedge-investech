@@ -2,15 +2,19 @@ import express from 'express'
 import {
     getStudents,
     mapStudentFaculty,
+    updateStudentDetails,
 } from '../controllers/studentControllers.js'
 import { protect, restrictTo } from '../middlewares/authMiddleware.js'
 
 const router = express.Router()
 
-// Accessible by Admin and Faculty (Controller handles the internal query scoping)
+// Accessible by Admin, Accounts, and Faculty
 router.route('/').get(protect, getStudents)
 
-// Only Admins can execute the mapping functionality
+// Admin updates to address, links, and operational status
+router.route('/:id').put(protect, restrictTo('admin'), updateStudentDetails)
+
+// Admin executes initial faculty mapping
 router
     .route('/:id/map-faculty')
     .put(protect, restrictTo('admin'), mapStudentFaculty)

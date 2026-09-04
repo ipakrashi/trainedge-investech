@@ -6,7 +6,7 @@ const studentSchema = mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'leadModel',
             required: true,
-            unique: true, // Guarantees 1:1 relationship
+            unique: true,
             index: true,
         },
         fullName: { type: String, required: true, trim: true },
@@ -19,26 +19,31 @@ const studentSchema = mongoose.Schema(
         },
         phone: { type: String, required: true, trim: true, unique: true },
 
-        // Delivery details (Populated by Admin during mapping)
+        // --- NEW: Operational Address Details ---
+        address: { type: String, trim: true },
+        city: { type: String, trim: true },
+        pincode: { type: String, trim: true },
+
+        // --- NEW: Document Links ---
+        studentAgreementLink: { type: String, trim: true },
+        certificateLink: { type: String, trim: true },
+
         enrolledCourses: [
             {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'courseModel',
             },
         ],
-        // Sales person who closed it (historical)
         salesCounselor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'userModel',
         },
-        // The educator who delivers it (Access Control)
         assignedFaculty: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'userModel',
             index: true,
         },
 
-        // Financials (Defaulted to 0 until Admin maps it)
         totalFee: { type: Number, default: 0, min: 0 },
         paidAmount: { type: Number, default: 0, min: 0 },
         paymentStatus: {
@@ -71,7 +76,6 @@ const studentSchema = mongoose.Schema(
 
         status: {
             type: String,
-            // PENDING_ASSIGNMENT allows the auto-creation to hold until Admin maps it
             enum: ['PENDING_ASSIGNMENT', 'ACTIVE', 'GRADUATED', 'DROPPED'],
             default: 'PENDING_ASSIGNMENT',
         },

@@ -15,7 +15,6 @@ export const getStudents = async (req, res) => {
         const isFaculty = roleName === 'faculty'
         const isAccounts = roleName === 'accounts'
 
-        // Allow Admin, Faculty, and Accounts; reject others
         if (!isAdmin && !isFaculty && !isAccounts) {
             return res.status(403).json({
                 success: false,
@@ -25,12 +24,10 @@ export const getStudents = async (req, res) => {
 
         const query = {}
 
-        // Scoped Visibility: Faculty can only see students strictly mapped to them
         if (isFaculty) {
             query.assignedFaculty = req.user._id
-            query.status = { $ne: 'PENDING_ASSIGNMENT' } // Faculty don't see unmapped students
+            query.status = { $ne: 'PENDING_ASSIGNMENT' }
         }
-        // Admin and Accounts have global visibility over active student payment ledgers
 
         const students = await studentModel
             .find(query)
@@ -58,7 +55,6 @@ export const mapStudentFaculty = async (req, res) => {
     try {
         const { assignedFaculty, enrolledCourses, totalFee } = req.body
 
-        // Ensure the assigned user is actually a faculty member (Safely handle populated or unpopulated role)
         const facultyCheck = await userModel
             .findById(assignedFaculty)
             .populate('role')
@@ -70,7 +66,6 @@ export const mapStudentFaculty = async (req, res) => {
             })
         }
 
-        // Safely extract the role name string regardless of schema population state
         const facultyRoleName = (
             facultyCheck.role?.name ||
             (typeof facultyCheck.role === 'string' ? facultyCheck.role : '')
@@ -90,7 +85,7 @@ export const mapStudentFaculty = async (req, res) => {
                     assignedFaculty,
                     enrolledCourses,
                     totalFee,
-                    status: 'ACTIVE', // Flips them out of the Admin pending dashboard
+                    status: 'ACTIVE',
                 },
                 { new: true, runValidators: true },
             )
@@ -112,6 +107,56 @@ export const mapStudentFaculty = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server mapping error.',
+            error: error.message,
+        })
+    }
+}
+
+// @desc    Update Student operational details (Address, Links, Status)
+// @route   PUT /api/students/:id
+// @access  Private/Admin
+export const updateStudentDetails = async (req, res) => {
+    try {
+        const {
+            address,
+            city,
+            pincode,
+            studentAgreementLink,
+            certificateLink,
+            status,
+        } = req.body
+
+        const student = await studentModel
+            .findByIdAndUpdate(
+                req.params.id,
+                {
+                    address,
+                    city,
+                    pincode,
+                    studentAgreementLink,
+                    certificateLink,
+                    status,
+                },
+                { new: true, runValidators: true },
+            )
+            .populate('assignedFaculty', 'firstName lastName')
+            .populate('enrolledCourses', 'courseTitle')
+
+        if (!student) {
+            return res
+                .status(404)
+                .json({ success: false, message: 'Student not found.' })
+        }
+
+        res.status(200).json({
+            success: true,
+            data: student,
+            message: 'Student details updated successfully.',
+        })
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server update error.',
             error: error.message,
         })
     }
