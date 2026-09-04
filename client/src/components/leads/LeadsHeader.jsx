@@ -38,7 +38,6 @@ const LeadsHeader = ({
                         className='pl-10 pr-4 py-2 w-full sm:w-44 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm'
                     />
                 </div>
-
                 {/* Status Filter */}
                 <div className='relative w-full sm:w-auto'>
                     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -60,7 +59,6 @@ const LeadsHeader = ({
                         <option value='JUNK'>Junk</option>
                     </select>
                 </div>
-
                 {/* Assignee Filter - ONLY ADMINS */}
                 {isAdmin && (
                     <div className='relative w-full sm:w-auto'>
@@ -81,16 +79,18 @@ const LeadsHeader = ({
                         </select>
                     </div>
                 )}
-
                 {/* Import CSV Button */}
-                <button
-                    onClick={onImportClick}
-                    className='flex items-center justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap w-full sm:w-auto'
-                >
-                    <FiUpload className='mr-2 text-gray-500' />
-                    Import CSV
-                </button>
 
+                {console.log(isAdmin)}
+                {isAdmin && (
+                    <button
+                        onClick={onImportClick}
+                        className='flex items-center justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap w-full sm:w-auto'
+                    >
+                        <FiUpload className='mr-2 text-gray-500' />
+                        Import CSV
+                    </button>
+                )}
                 {/* Add Button */}
                 <button
                     onClick={onAddClick}
