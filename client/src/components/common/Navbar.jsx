@@ -38,7 +38,7 @@ const Navbar = () => {
 
     const isAdmin = userRole === 'admin'
     const isFaculty = userRole === 'faculty'
-    const isAccounts = userRole === 'accounts' || userRole === 'accountant'
+    const isAccounts = userRole === 'accounts'
 
     const navClass = ({ isActive }) =>
         isActive

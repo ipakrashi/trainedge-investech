@@ -12,7 +12,6 @@ import StatCard from '../components/common/StatCard'
 import RecentLeadsTable from '../components/dashboard/RecentLeadsTable'
 import FollowUpList from '../components/dashboard/FollowUpList'
 import ConversionFunnel from '../components/dashboard/ConversionFunnel'
-// REFRACTORED PATHS: Pointing to components/reports/ where these components reside
 import SourceBreakdown from '../components/reports/SourceBreakdown'
 import RepPerformanceTable from '../components/reports/RepPerformanceTable'
 
@@ -26,7 +25,7 @@ const Dashboard = () => {
             try {
                 const res = await api.get('/analytics')
                 setDashboardData(res.data.data)
-                setUserRole(res.data.role)
+                setUserRole((res.data.role || '').toLowerCase())
             } catch (error) {
                 console.error('Failed to load dashboard metrics:', error)
             } finally {
@@ -45,17 +44,59 @@ const Dashboard = () => {
     }
 
     // ==========================================
+    // 0. ACCOUNTS / FINANCE DASHBOARD VIEW
+    // ==========================================
+    if (userRole === 'accounts') {
+        return (
+            <div className='bg-gray-50 min-h-screen py-8'>
+                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='mb-8'>
+                        <h1 className='text-2xl font-bold text-gray-900'>
+                            Financial & Collections Dashboard
+                        </h1>
+                        <p className='text-gray-500 text-sm mt-1'>
+                            Manage fee receipts, transaction history, and
+                            revenue collection ledger.
+                        </p>
+                    </div>
+
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8'>
+                        <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between'>
+                            <div>
+                                <p className='text-xs font-semibold text-gray-400 uppercase tracking-wider'>
+                                    Operations
+                                </p>
+                                <h3 className='text-lg font-bold text-gray-900 mt-1'>
+                                    Fee Payment Ledger
+                                </h3>
+                                <p className='text-sm text-gray-500 mt-1'>
+                                    Record and inspect student fee transactions.
+                                </p>
+                            </div>
+                            <a
+                                href='/admin/payments'
+                                className='px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors'
+                            >
+                                Open Ledger
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    // ==========================================
     // 1. FACULTY DASHBOARD VIEW
     // ==========================================
     if (userRole === 'faculty') {
         const {
             totalStudents,
             activeStudents,
-            totalAssignedFees,
             totalCollectedFees,
             collectionRate,
             studentsList,
-        } = dashboardData
+        } = dashboardData || {}
 
         return (
             <div className='bg-gray-50 min-h-screen py-8'>
@@ -73,25 +114,25 @@ const Dashboard = () => {
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
                         <StatCard
                             title='Total Students'
-                            value={totalStudents}
+                            value={totalStudents || 0}
                             icon={FiUsers}
                             colorClass='bg-blue-50 text-blue-600'
                         />
                         <StatCard
                             title='Active Roster'
-                            value={activeStudents}
+                            value={activeStudents || 0}
                             icon={FiCheckCircle}
                             colorClass='bg-green-50 text-green-600'
                         />
                         <StatCard
                             title='Collected Revenue'
-                            value={`₹${totalCollectedFees.toLocaleString('en-IN')}`}
+                            value={`₹${(totalCollectedFees || 0).toLocaleString('en-IN')}`}
                             icon={FiDollarSign}
                             colorClass='bg-purple-50 text-purple-600'
                         />
                         <StatCard
                             title='Collection Rate'
-                            value={`${collectionRate}%`}
+                            value={`${collectionRate || 0}%`}
                             icon={FiTrendingUp}
                             colorClass='bg-orange-50 text-orange-600'
                         />
@@ -120,7 +161,7 @@ const Dashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody className='divide-y divide-gray-100 text-sm'>
-                                    {studentsList.map((s) => (
+                                    {(studentsList || []).map((s) => (
                                         <tr
                                             key={s._id}
                                             className='hover:bg-gray-50'
@@ -133,14 +174,16 @@ const Dashboard = () => {
                                                 <div>{s.phone}</div>
                                             </td>
                                             <td className='px-6 py-4'>
-                                                {s.enrolledCourses.map((c) => (
-                                                    <span
-                                                        key={c._id}
-                                                        className='bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs mr-1 inline-block'
-                                                    >
-                                                        {c.courseTitle}
-                                                    </span>
-                                                ))}
+                                                {(s.enrolledCourses || []).map(
+                                                    (c) => (
+                                                        <span
+                                                            key={c._id}
+                                                            className='bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs mr-1 inline-block'
+                                                        >
+                                                            {c.courseTitle}
+                                                        </span>
+                                                    ),
+                                                )}
                                             </td>
                                             <td className='px-6 py-4 text-right'>
                                                 <span
@@ -173,7 +216,7 @@ const Dashboard = () => {
             newThisWeek,
             recentLeads,
             pendingFollowUps,
-        } = dashboardData
+        } = dashboardData || {}
 
         return (
             <div className='bg-gray-50 min-h-screen py-8'>
@@ -190,25 +233,25 @@ const Dashboard = () => {
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
                         <StatCard
                             title='My Assigned Leads'
-                            value={totalLeads}
+                            value={totalLeads || 0}
                             icon={FiUsers}
                             colorClass='bg-blue-50 text-blue-600'
                         />
                         <StatCard
                             title='Active Pipeline'
-                            value={activePipeline}
+                            value={activePipeline || 0}
                             icon={FiDollarSign}
                             colorClass='bg-green-50 text-green-600'
                         />
                         <StatCard
                             title='Conversion Rate'
-                            value={conversionRate}
+                            value={conversionRate || '0%'}
                             icon={FiTrendingUp}
                             colorClass='bg-purple-50 text-purple-600'
                         />
                         <StatCard
                             title='New This Week'
-                            value={newThisWeek}
+                            value={newThisWeek || 0}
                             icon={FiActivity}
                             colorClass='bg-orange-50 text-orange-600'
                         />
@@ -216,10 +259,10 @@ const Dashboard = () => {
 
                     <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
                         <div className='lg:col-span-2 space-y-8'>
-                            <RecentLeadsTable leads={recentLeads} />
+                            <RecentLeadsTable leads={recentLeads || []} />
                         </div>
                         <div className='space-y-8'>
-                            <FollowUpList tasks={pendingFollowUps} />
+                            <FollowUpList tasks={pendingFollowUps || []} />
                         </div>
                     </div>
                 </div>
@@ -239,7 +282,7 @@ const Dashboard = () => {
         funnelData,
         sources,
         teamData,
-    } = dashboardData
+    } = dashboardData || {}
 
     return (
         <div className='bg-gray-50 min-h-screen py-8'>
@@ -257,38 +300,38 @@ const Dashboard = () => {
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
                     <StatCard
                         title='Total Institute Leads'
-                        value={totalLeads}
+                        value={totalLeads || 0}
                         icon={FiUsers}
                         colorClass='bg-blue-50 text-blue-600'
                     />
                     <StatCard
                         title='Global Active Pipeline'
-                        value={activePipeline}
+                        value={activePipeline || 0}
                         icon={FiDollarSign}
                         colorClass='bg-green-50 text-green-600'
                     />
                     <StatCard
                         title='Overall Conversion'
-                        value={conversionRate}
+                        value={conversionRate || '0%'}
                         icon={FiTrendingUp}
                         colorClass='bg-purple-50 text-purple-600'
                     />
                     <StatCard
                         title='New Leads This Week'
-                        value={newThisWeek}
+                        value={newThisWeek || 0}
                         icon={FiActivity}
                         colorClass='bg-orange-50 text-orange-600'
                     />
                 </div>
 
                 <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
-                    <ConversionFunnel funnelData={funnelData} />
-                    <SourceBreakdown sources={sources} />
+                    <ConversionFunnel funnelData={funnelData || {}} />
+                    <SourceBreakdown sources={sources || []} />
                 </div>
 
                 <div className='space-y-8'>
-                    <RepPerformanceTable teamData={teamData} />
-                    <RecentLeadsTable leads={recentLeads} />
+                    <RepPerformanceTable teamData={teamData || []} />
+                    <RecentLeadsTable leads={recentLeads || []} />
                 </div>
             </div>
         </div>

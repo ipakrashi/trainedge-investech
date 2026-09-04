@@ -4,12 +4,16 @@ const AdminRoute = () => {
     const userInfoString = localStorage.getItem('userInfo')
     const userInfo = userInfoString ? JSON.parse(userInfoString) : null
 
-    // If they exist and are an admin, render the requested page (<Outlet />). Otherwise, redirect.
-    return userInfo && userInfo.role === 'admin' ? (
-        <Outlet />
-    ) : (
-        <Navigate to='/' replace />
-    )
+    const roleName = (
+        userInfo?.role?.name ||
+        userInfo?.role ||
+        ''
+    ).toLowerCase()
+
+    // Restricted strictly to Admin and Accounts based on your collection records
+    const isAllowed = roleName === 'admin' || roleName === 'accounts'
+
+    return userInfo && isAllowed ? <Outlet /> : <Navigate to='/' replace />
 }
 
 export default AdminRoute
