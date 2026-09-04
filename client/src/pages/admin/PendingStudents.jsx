@@ -131,68 +131,72 @@ const PendingStudents = () => {
                     </div>
                 ) : (
                     <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-                        <table className='w-full text-left border-collapse'>
-                            <thead>
-                                <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100'>
-                                    <th className='px-6 py-4 font-medium'>
-                                        Student Details
-                                    </th>
-                                    <th className='px-6 py-4 font-medium'>
-                                        Contact
-                                    </th>
-                                    <th className='px-6 py-4 font-medium'>
-                                        Sales Counselor
-                                    </th>
-                                    <th className='px-6 py-4 text-right font-medium'>
-                                        Action
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className='divide-y divide-gray-100 text-sm'>
-                                {pendingStudents.map((student) => (
-                                    <tr
-                                        key={student._id}
-                                        className='hover:bg-gray-50'
-                                    >
-                                        <td className='px-6 py-4'>
-                                            <div className='font-medium text-gray-900'>
-                                                {student.fullName}
-                                            </div>
-                                            <div className='text-xs text-orange-500 flex items-center mt-1'>
-                                                <FiClock className='mr-1' />{' '}
-                                                Pending Assignment
-                                            </div>
-                                        </td>
-                                        <td className='px-6 py-4 text-gray-500'>
-                                            <div>{student.email}</div>
-                                            <div>{student.phone}</div>
-                                        </td>
-                                        <td className='px-6 py-4 text-gray-500'>
-                                            {student.salesCounselor ? (
-                                                <span className='bg-gray-100 px-2 py-1 rounded text-xs'>
-                                                    Closed by ID:{' '}
-                                                    {student.salesCounselor
-                                                        .toString()
-                                                        .slice(-6)}
-                                                </span>
-                                            ) : (
-                                                'N/A'
-                                            )}
-                                        </td>
-                                        <td className='px-6 py-4 text-right'>
-                                            <button
-                                                onClick={() =>
-                                                    handleOpenModal(student)
-                                                }
-                                                className='bg-orange-100 text-orange-700 hover:bg-orange-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors'
-                                            >
-                                                Map Student
-                                            </button>
-                                        </td>
+                        {/* MOBILE RESPONSIVE FIX: Added overflow-x-auto wrapper */}
+                        <div className='overflow-x-auto'>
+                            {/* MOBILE RESPONSIVE FIX: Added whitespace-nowrap to prevent ugly squishing */}
+                            <table className='w-full text-left border-collapse whitespace-nowrap'>
+                                <thead>
+                                    <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100'>
+                                        <th className='px-6 py-4 font-medium'>
+                                            Student Details
+                                        </th>
+                                        <th className='px-6 py-4 font-medium'>
+                                            Contact
+                                        </th>
+                                        <th className='px-6 py-4 font-medium'>
+                                            Sales Counselor
+                                        </th>
+                                        <th className='px-6 py-4 text-right font-medium'>
+                                            Action
+                                        </th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className='divide-y divide-gray-100 text-sm'>
+                                    {pendingStudents.map((student) => (
+                                        <tr
+                                            key={student._id}
+                                            className='hover:bg-gray-50'
+                                        >
+                                            <td className='px-6 py-4'>
+                                                <div className='font-medium text-gray-900'>
+                                                    {student.fullName}
+                                                </div>
+                                                <div className='text-xs text-orange-500 flex items-center mt-1'>
+                                                    <FiClock className='mr-1' />{' '}
+                                                    Pending Assignment
+                                                </div>
+                                            </td>
+                                            <td className='px-6 py-4 text-gray-500'>
+                                                <div>{student.email}</div>
+                                                <div>{student.phone}</div>
+                                            </td>
+                                            <td className='px-6 py-4 text-gray-500'>
+                                                {student.salesCounselor ? (
+                                                    <span className='bg-gray-100 px-2 py-1 rounded text-xs'>
+                                                        Closed by ID:{' '}
+                                                        {student.salesCounselor
+                                                            .toString()
+                                                            .slice(-6)}
+                                                    </span>
+                                                ) : (
+                                                    'N/A'
+                                                )}
+                                            </td>
+                                            <td className='px-6 py-4 text-right'>
+                                                <button
+                                                    onClick={() =>
+                                                        handleOpenModal(student)
+                                                    }
+                                                    className='bg-orange-100 text-orange-700 hover:bg-orange-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors'
+                                                >
+                                                    Map Student
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>
@@ -247,7 +251,7 @@ const PendingStudents = () => {
                                 </div>
                             </div>
 
-                            <div className='grid grid-cols-2 gap-4'>
+                            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                                 <div>
                                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                                         Assign Faculty
