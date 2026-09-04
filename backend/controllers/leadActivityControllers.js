@@ -1,6 +1,13 @@
 import leadActivityModel from '../models/leadActivityModel.js'
 import leadModel from '../models/leadModel.js'
 
+// Helper function to safely check if a user is an admin
+const checkIsAdmin = (user) => {
+    if (!user || !user.role) return false
+    const roleName = user.role.name || user.role
+    return roleName.toString().toLowerCase() === 'admin'
+}
+
 // @desc    Add a new activity/interaction to a lead
 // @route   POST /api/lead-activities
 // @access  Private
@@ -17,9 +24,11 @@ export const createActivity = async (req, res) => {
             })
         }
 
+        const isAdmin = checkIsAdmin(req.user)
+
         // Security check: Only Admins or the assigned counselor can add activities to this lead
         if (
-            req.user.role !== 'admin' &&
+            !isAdmin &&
             existingLead.assignedTo.toString() !== req.user._id.toString()
         ) {
             return res.status(403).json({
@@ -71,8 +80,10 @@ export const getActivitiesByLead = async (req, res) => {
                 .json({ success: false, message: 'Lead not found.' })
         }
 
+        const isAdmin = checkIsAdmin(req.user)
+
         if (
-            req.user.role !== 'admin' &&
+            !isAdmin &&
             lead.assignedTo.toString() !== req.user._id.toString()
         ) {
             return res.status(403).json({
@@ -118,9 +129,11 @@ export const updateActivity = async (req, res) => {
                 .json({ success: false, message: 'Activity not found.' })
         }
 
+        const isAdmin = checkIsAdmin(req.user)
+
         // Security check: Only the user who created the activity or an Admin can edit it
         if (
-            req.user.role !== 'admin' &&
+            !isAdmin &&
             activity.performedBy.toString() !== req.user._id.toString()
         ) {
             return res.status(403).json({
@@ -137,7 +150,7 @@ export const updateActivity = async (req, res) => {
                 new: true,
                 runValidators: true,
             })
-            .populate('performedBy', 'name')
+            .populate('performedBy', 'firstName lastName')
 
         res.status(200).json({
             success: true,
@@ -173,9 +186,11 @@ export const deleteActivity = async (req, res) => {
                 .json({ success: false, message: 'Activity not found.' })
         }
 
+        const isAdmin = checkIsAdmin(req.user)
+
         // Security check: Only Admins or the original author can delete an activity
         if (
-            req.user.role !== 'admin' &&
+            !isAdmin &&
             activity.performedBy.toString() !== req.user._id.toString()
         ) {
             return res.status(403).json({
