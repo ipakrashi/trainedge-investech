@@ -1,8 +1,9 @@
 import leadModel from '../models/leadModel.js'
-import csv from 'csv-parser'
-import { Readable } from 'stream'
+import studentModel from '../models/studentModel.js'
 import userModel from '../models/userModel.js'
 import courseModel from '../models/courseModel.js'
+import csv from 'csv-parser'
+import { Readable } from 'stream'
 import asyncHandler from 'express-async-handler'
 
 // ==========================================
@@ -160,7 +161,11 @@ export const updateLead = asyncHandler(async (req, res) => {
         delete updates.assignedTo // Non-admins cannot transfer leads
     }
 
-    // 4. Persistence with validation
+    // 4. Identify Transition State
+    const isTransitioningToEnrolled =
+        updates.status === 'ENROLLED' && lead.status !== 'ENROLLED'
+
+    // 5. Persistence with validation
     const updatedLead = await leadModel
         .findByIdAndUpdate(req.params.id, updates, {
             new: true,
@@ -168,6 +173,22 @@ export const updateLead = asyncHandler(async (req, res) => {
         })
         .populate('interestedCourses', 'courseTitle fee category')
         .populate('assignedTo', 'firstName lastName email')
+
+    // 6. Spawn the Student Document if the lead just converted
+    if (isTransitioningToEnrolled) {
+        const studentExists = await studentModel.findOne({ lead: lead._id })
+
+        if (!studentExists) {
+            await studentModel.create({
+                lead: lead._id,
+                fullName: lead.fullName,
+                email: lead.email || `pending-${lead._id}@trainedge.com`, // Fallback for safety if email was optional during lead creation
+                phone: lead.phone,
+                salesCounselor: lead.assignedTo,
+                status: 'PENDING_ASSIGNMENT',
+            })
+        }
+    }
 
     res.status(200).json({
         success: true,
@@ -195,6 +216,9 @@ export const deleteLead = asyncHandler(async (req, res) => {
         res.status(404)
         throw new Error('Lead not found')
     }
+
+    // Optional Cleanup: If a lead is deleted, you might also want to delete the pending student record
+    await studentModel.findOneAndDelete({ lead: req.params.id })
 
     // 3. Return the deleted id for immediate React state reconciliation
     res.status(200).json({

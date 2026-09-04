@@ -1,11 +1,29 @@
 import courseModel from '../models/courseModel.js'
+import userModel from '../models/userModel.js'
 
 // @desc    Create a new course
 // @route   POST /api/courses
 // @access  Private/Admin
 export const createCourse = async (req, res) => {
     try {
-        const { courseTitle, category, fee, durationWeeks, isActive } = req.body
+        const {
+            courseTitle,
+            category,
+            fee,
+            durationWeeks,
+            isActive,
+            assignedFaculty,
+        } = req.body
+
+        // Optional Backend Failsafe: Verify the assigned user is actually a faculty member
+        const facultyUser = await userModel.findById(assignedFaculty)
+        if (!facultyUser || facultyUser.role !== 'faculty') {
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Invalid faculty assignment. User must exist and have the faculty role.',
+            })
+        }
 
         const newCourse = await courseModel.create({
             courseTitle,
@@ -13,32 +31,31 @@ export const createCourse = async (req, res) => {
             fee,
             durationWeeks,
             isActive,
+            assignedFaculty,
         })
+
+        // Populate immediately so the frontend gets the full object on creation
+        await newCourse.populate('assignedFaculty', 'firstName lastName email')
 
         res.status(201).json({
             success: true,
             data: newCourse,
         })
     } catch (error) {
-        // Handle duplicate courseTitle (MongoDB duplicate key error code 11000)
         if (error.code === 11000) {
             return res.status(400).json({
                 success: false,
                 message: 'A course with this title already exists.',
             })
         }
-
-        // Handle Mongoose validation errors (enums, required fields, min value)
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(
                 (val) => val.message,
             )
-            return res.status(400).json({
-                success: false,
-                message: messages.join(', '),
-            })
+            return res
+                .status(400)
+                .json({ success: false, message: messages.join(', ') })
         }
-
         res.status(500).json({
             success: false,
             message: 'Server error while creating course.',
@@ -58,7 +75,10 @@ export const getAllCourses = async (req, res) => {
         if (category) filter.category = category
         if (isActive !== undefined) filter.isActive = isActive === 'true'
 
-        const courses = await courseModel.find(filter).sort({ createdAt: -1 })
+        const courses = await courseModel
+            .find(filter)
+            .populate('assignedFaculty', 'firstName lastName email')
+            .sort({ createdAt: -1 })
 
         res.status(200).json({
             success: true,
@@ -79,28 +99,23 @@ export const getAllCourses = async (req, res) => {
 // @access  Private / Public
 export const getCourseById = async (req, res) => {
     try {
-        const course = await courseModel.findById(req.params.id)
+        const course = await courseModel
+            .findById(req.params.id)
+            .populate('assignedFaculty', 'firstName lastName email')
 
         if (!course) {
-            return res.status(404).json({
-                success: false,
-                message: 'Course not found.',
-            })
+            return res
+                .status(404)
+                .json({ success: false, message: 'Course not found.' })
         }
 
-        res.status(200).json({
-            success: true,
-            data: course,
-        })
+        res.status(200).json({ success: true, data: course })
     } catch (error) {
-        // Handle invalid MongoDB ObjectId format
         if (error.name === 'CastError') {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid course ID format.',
-            })
+            return res
+                .status(400)
+                .json({ success: false, message: 'Invalid course ID format.' })
         }
-
         res.status(500).json({
             success: false,
             message: 'Server error while fetching course.',
@@ -114,26 +129,20 @@ export const getCourseById = async (req, res) => {
 // @access  Private/Admin
 export const updateCourse = async (req, res) => {
     try {
-        const course = await courseModel.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            {
-                new: true, // Return updated document
-                runValidators: true, // Enforce schema rules during update
-            },
-        )
+        const course = await courseModel
+            .findByIdAndUpdate(req.params.id, req.body, {
+                new: true,
+                runValidators: true,
+            })
+            .populate('assignedFaculty', 'firstName lastName email')
 
         if (!course) {
-            return res.status(404).json({
-                success: false,
-                message: 'Course not found.',
-            })
+            return res
+                .status(404)
+                .json({ success: false, message: 'Course not found.' })
         }
 
-        res.status(200).json({
-            success: true,
-            data: course,
-        })
+        res.status(200).json({ success: true, data: course })
     } catch (error) {
         if (error.code === 11000) {
             return res.status(400).json({
@@ -141,24 +150,19 @@ export const updateCourse = async (req, res) => {
                 message: 'A course with this title already exists.',
             })
         }
-
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(
                 (val) => val.message,
             )
-            return res.status(400).json({
-                success: false,
-                message: messages.join(', '),
-            })
+            return res
+                .status(400)
+                .json({ success: false, message: messages.join(', ') })
         }
-
         if (error.name === 'CastError') {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid course ID format.',
-            })
+            return res
+                .status(400)
+                .json({ success: false, message: 'Invalid course ID format.' })
         }
-
         res.status(500).json({
             success: false,
             message: 'Server error while updating course.',
@@ -173,26 +177,21 @@ export const updateCourse = async (req, res) => {
 export const deleteCourse = async (req, res) => {
     try {
         const course = await courseModel.findByIdAndDelete(req.params.id)
-
         if (!course) {
-            return res.status(404).json({
-                success: false,
-                message: 'Course not found.',
-            })
+            return res
+                .status(404)
+                .json({ success: false, message: 'Course not found.' })
         }
-
         res.status(200).json({
             success: true,
             message: 'Course deleted successfully.',
         })
     } catch (error) {
         if (error.name === 'CastError') {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid course ID format.',
-            })
+            return res
+                .status(400)
+                .json({ success: false, message: 'Invalid course ID format.' })
         }
-
         res.status(500).json({
             success: false,
             message: 'Server error while deleting course.',

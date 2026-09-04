@@ -1,3 +1,4 @@
+// src/components/common/Navbar.jsx
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
@@ -13,6 +14,7 @@ import {
     FiLayers,
     FiTrendingUp,
     FiRefreshCcw,
+    FiClock, // NEW Import
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -26,6 +28,14 @@ const Navbar = () => {
     const userInfoString = localStorage.getItem('userInfo')
     const userInfo = userInfoString ? JSON.parse(userInfoString) : null
     const displayName = userInfo?.firstName || 'Profile'
+    const userRole = (
+        userInfo?.role?.name ||
+        userInfo?.role ||
+        ''
+    ).toLowerCase()
+
+    const isAdmin = userRole === 'admin'
+    const isFaculty = userRole === 'faculty'
 
     const navClass = ({ isActive }) =>
         isActive
@@ -56,20 +66,38 @@ const Navbar = () => {
                             <NavLink to='/' className={navClass}>
                                 Dashboard
                             </NavLink>
-                            <NavLink to='/leads' className={navClass}>
-                                Leads
-                            </NavLink>
-                            <NavLink to='/pipeline' className={navClass}>
-                                Pipeline
-                            </NavLink>
-                            <NavLink to='/reports' className={navClass}>
-                                Reports
-                            </NavLink>
+
+                            {/* Role-Based Visiblity: Faculty do not sell, they deliver */}
+                            {!isFaculty && (
+                                <>
+                                    <NavLink to='/leads' className={navClass}>
+                                        Leads
+                                    </NavLink>
+                                    <NavLink
+                                        to='/pipeline'
+                                        className={navClass}
+                                    >
+                                        Pipeline
+                                    </NavLink>
+                                </>
+                            )}
+
+                            {/* Students Tab - Visible to Admin and Faculty */}
+                            {(isAdmin || isFaculty) && (
+                                <NavLink to='/students' className={navClass}>
+                                    Students
+                                </NavLink>
+                            )}
+
+                            {!isFaculty && (
+                                <NavLink to='/reports' className={navClass}>
+                                    Reports
+                                </NavLink>
+                            )}
                         </div>
 
                         {/* Admin Only Dropdown */}
-                        {userInfo?.role?.name === 'admin' ||
-                        userInfo?.role === 'admin' ? (
+                        {isAdmin ? (
                             <div className='relative'>
                                 <button
                                     onClick={() => setIsAdminOpen(!isAdminOpen)}
@@ -83,8 +111,20 @@ const Navbar = () => {
                                 </button>
 
                                 {isAdminOpen && (
-                                    <div className='absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50'>
+                                    <div className='absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50'>
                                         <div className='px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1'>
+                                            Operational Workflow
+                                        </div>
+                                        <Link
+                                            to='/admin/pending-students'
+                                            className='flex items-center gap-3 px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors font-medium'
+                                            onClick={() =>
+                                                setIsAdminOpen(false)
+                                            }
+                                        >
+                                            <FiClock /> Map Pending Students
+                                        </Link>
+                                        <div className='px-4 py-2 mt-1 text-xs font-bold text-gray-400 uppercase tracking-wider border-y border-gray-50 mb-1'>
                                             System Management
                                         </div>
                                         <Link
@@ -194,37 +234,61 @@ const Navbar = () => {
                         >
                             Dashboard
                         </NavLink>
-                        <NavLink
-                            to='/leads'
-                            onClick={toggleMenu}
-                            className={navClass}
-                        >
-                            Leads
-                        </NavLink>
-                        <NavLink
-                            to='/pipeline'
-                            onClick={toggleMenu}
-                            className={navClass}
-                        >
-                            Pipeline
-                        </NavLink>
-                        <NavLink
-                            to='/reports'
-                            onClick={toggleMenu}
-                            className={navClass}
-                        >
-                            Reports
-                        </NavLink>
+
+                        {!isFaculty && (
+                            <>
+                                <NavLink
+                                    to='/leads'
+                                    onClick={toggleMenu}
+                                    className={navClass}
+                                >
+                                    Leads
+                                </NavLink>
+                                <NavLink
+                                    to='/pipeline'
+                                    onClick={toggleMenu}
+                                    className={navClass}
+                                >
+                                    Pipeline
+                                </NavLink>
+                            </>
+                        )}
+
+                        {(isAdmin || isFaculty) && (
+                            <NavLink
+                                to='/students'
+                                onClick={toggleMenu}
+                                className={navClass}
+                            >
+                                Students
+                            </NavLink>
+                        )}
+
+                        {!isFaculty && (
+                            <NavLink
+                                to='/reports'
+                                onClick={toggleMenu}
+                                className={navClass}
+                            >
+                                Reports
+                            </NavLink>
+                        )}
 
                         {/* Admin Management Links inside Mobile Drawer */}
-                        {userInfo?.role?.name === 'admin' ||
-                        userInfo?.role === 'admin' ? (
+                        {isAdmin ? (
                             <>
                                 <div className='border-t border-gray-100 my-2 pt-2'>
                                     <span className='px-1 text-xs font-bold text-gray-400 uppercase tracking-wider'>
                                         System Management
                                     </span>
                                 </div>
+                                <Link
+                                    to='/admin/pending-students'
+                                    onClick={toggleMenu}
+                                    className='flex items-center gap-3 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium rounded-lg transition-colors'
+                                >
+                                    <FiClock /> Map Pending Students
+                                </Link>
                                 <Link
                                     to='/admin/users'
                                     onClick={toggleMenu}

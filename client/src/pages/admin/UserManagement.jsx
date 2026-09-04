@@ -34,19 +34,17 @@ const UserManagement = () => {
         try {
             setIsLoading(true)
             const [usersResult, rolesResult] = await Promise.allSettled([
-                api.get('/users'), // FIXED: Removed /getUsers
+                api.get('/users'),
                 api.get('/roles'),
             ])
 
             if (usersResult.status === 'fulfilled') {
-                // FIXED: Added safe array extraction here too
                 const fetchedUsers =
                     usersResult.value.data?.data || usersResult.value.data
                 setUsers(Array.isArray(fetchedUsers) ? fetchedUsers : [])
             }
 
             if (rolesResult.status === 'fulfilled') {
-                // Safely extract roles array
                 const fetchedRoles =
                     rolesResult.value.data?.data || rolesResult.value.data
                 setAvailableRoles(
@@ -95,7 +93,8 @@ const UserManagement = () => {
                 if (!payload.password) delete payload.password
                 await api.put(`/users/${editingUser._id}`, payload)
             } else {
-                await api.post('/users/addNew', formData)
+                // FIXED: Removed /addNew to match backend REST architecture
+                await api.post('/users', formData)
             }
             setIsModalOpen(false)
             fetchUsers()
