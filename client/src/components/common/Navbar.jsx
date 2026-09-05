@@ -62,9 +62,26 @@ const Navbar = () => {
                             />
                         </Link>
                         <div className='hidden lg:flex items-center text-gray-600 border-l border-gray-200 pl-6'>
-                            <FiUser className='text-lg mr-2 text-gray-400' />
+                            <FiUser
+                                className='text-xl mr-2 text-gray-700'
+                                font-bold
+                            />
                             <span className='font-medium text-sm whitespace-nowrap'>
-                                Welcome: {displayName}
+                                <span
+                                    className={
+                                        isAdmin
+                                            ? 'text-red-700 bg-red-50 border border-red-200 font-semibold px-2 py-1 rounded-2xl'
+                                            : isSales
+                                              ? 'text-blue-700 bg-blue-50 border border-blue-200 font-semibold px-2 py-1 rounded-2xl'
+                                              : isFaculty
+                                                ? 'text-amber-700 bg-amber-50 border border-amber-200 font-semibold px-2 py-1 rounded-2xl'
+                                                : isAccounts
+                                                  ? 'text-green-700 bg-green-50 border border-green-200 font-semibold px-2 py-1 rounded-2xl'
+                                                  : 'text-gray-700 bg-gray-50 border border-gray-200 font-semibold px-2 py-1 rounded-2xl'
+                                    }
+                                >
+                                    Welcome, {displayName}
+                                </span>
                             </span>
                         </div>
                     </div>
