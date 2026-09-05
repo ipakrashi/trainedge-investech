@@ -1,4 +1,5 @@
-import { FiEdit2, FiTrash2, FiActivity } from 'react-icons/fi'
+// src/components/leads/LeadsTable.jsx
+import { FiEdit2, FiTrash2, FiActivity, FiCalendar } from 'react-icons/fi'
 
 const LeadsTable = ({
     leads,
@@ -7,10 +8,47 @@ const LeadsTable = ({
     onViewActivityClick,
     isAdmin,
 }) => {
+    const formatFollowUpDate = (dateString) => {
+        if (!dateString)
+            return (
+                <span className='text-gray-400 italic text-xs'>
+                    Not scheduled
+                </span>
+            )
+
+        const date = new Date(dateString)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        date.setHours(0, 0, 0, 0)
+
+        const isOverdue = date < today
+        const isToday = date.getTime() === today.getTime()
+
+        let badgeStyle = 'bg-gray-100 text-gray-700 border-gray-200'
+        if (isOverdue)
+            badgeStyle = 'bg-red-50 text-red-700 border-red-200 font-semibold'
+        if (isToday)
+            badgeStyle =
+                'bg-amber-50 text-amber-700 border-amber-200 font-semibold'
+
+        return (
+            <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${badgeStyle}`}
+            >
+                <FiCalendar className='mr-1' />
+                {new Date(dateString).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                })}
+                {isOverdue && ' (Overdue)'}
+                {isToday && ' (Today)'}
+            </span>
+        )
+    }
+
     return (
-        // h-full makes the container stretch to fill the parent's flex-1 space
         <div className='bg-white rounded-xl shadow-sm border border-gray-100 h-[calc(100vh-176px)] flex flex-col overflow-hidden'>
-            {/* overflow-auto flex-1 keeps scrolling internal to the table body */}
             <div className='overflow-auto flex-1'>
                 <table className='w-full text-left border-collapse'>
                     <thead className='sticky top-0 z-10 bg-gray-50 shadow-sm'>
@@ -20,6 +58,9 @@ const LeadsTable = ({
                             <th className='px-6 py-4 font-medium'>Source</th>
                             <th className='px-6 py-4 font-medium'>
                                 Lead Owner
+                            </th>
+                            <th className='px-6 py-4 font-medium'>
+                                Next Follow-Up
                             </th>
                             <th className='px-6 py-4 font-medium'>
                                 Estimated Value
@@ -75,6 +116,11 @@ const LeadsTable = ({
                                             </span>
                                         )}
                                     </td>
+                                    <td className='px-6 py-4'>
+                                        {formatFollowUpDate(
+                                            lead.nextFollowUpDate,
+                                        )}
+                                    </td>
                                     <td className='px-6 py-4 font-medium text-gray-900'>
                                         &#8377; {lead.estimatedValue || 0}
                                     </td>
@@ -112,7 +158,7 @@ const LeadsTable = ({
                         ) : (
                             <tr>
                                 <td
-                                    colSpan='6'
+                                    colSpan='7'
                                     className='px-6 py-12 text-center text-gray-500'
                                 >
                                     No leads found matching your criteria.

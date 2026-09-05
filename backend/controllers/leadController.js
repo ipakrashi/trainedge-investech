@@ -54,37 +54,52 @@ export const createLead = asyncHandler(async (req, res) => {
 // @access  Private
 // ==========================================
 export const getLeads = asyncHandler(async (req, res) => {
-    const { status, source, city, page = 1, limit = 1000 } = req.query
+    const {
+        status,
+        source,
+        city,
+        followUpDate,
+        page = 1,
+        limit = 1000,
+    } = req.query
 
     const query = {}
 
-    // 1. Resolve role name safely from middleware context
     const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
     const isAdmin = roleName === 'admin'
 
-    // 2. Data Scoping: Non-admins can only see their own leads
     if (!isAdmin) {
         query.assignedTo = req.user._id
     }
 
-    // 3. Optional Filters
-    if (status) query.status = status
+    if (status && status !== 'All') query.status = status
     if (source) query.source = source
     if (city) query.city = new RegExp(city, 'i')
 
-    // 4. Pagination math
+    // NEW: Handle Next Follow-Up Date filtering (exact match for the selected day)
+    if (followUpDate) {
+        const startOfDay = new Date(followUpDate)
+        startOfDay.setHours(0, 0, 0, 0)
+        const endOfDay = new Date(followUpDate)
+        endOfDay.setHours(23, 59, 59, 999)
+
+        query.nextFollowUpDate = {
+            $gte: startOfDay,
+            $lte: endOfDay,
+        }
+    }
+
     const parsedPage = Math.max(1, parseInt(page, 10))
     const parsedLimit = Math.max(1, parseInt(limit, 10))
     const startIndex = (parsedPage - 1) * parsedLimit
 
     const total = await leadModel.countDocuments(query)
 
-    // 5. Query execution
     const leads = await leadModel
         .find(query)
         .populate('interestedCourses', 'courseTitle fee category')
         .populate('assignedTo', 'firstName lastName email')
-        .sort({ createdAt: -1 })
+        .sort({ nextFollowUpDate: 1, createdAt: -1 }) // Sort upcoming follow-ups first
         .skip(startIndex)
         .limit(parsedLimit)
 

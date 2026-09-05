@@ -1,4 +1,12 @@
-import { FiSearch, FiPlus, FiFilter, FiUser, FiUpload } from 'react-icons/fi'
+// src/components/leads/LeadsHeader.jsx
+import {
+    FiSearch,
+    FiPlus,
+    FiFilter,
+    FiUser,
+    FiUpload,
+    FiCalendar,
+} from 'react-icons/fi'
 
 const LeadsHeader = ({
     searchQuery,
@@ -7,6 +15,8 @@ const LeadsHeader = ({
     setStatusFilter,
     assigneeFilter,
     setAssigneeFilter,
+    followUpDateFilter,
+    setFollowUpDateFilter,
     usersList,
     isAdmin,
     onAddClick,
@@ -23,9 +33,8 @@ const LeadsHeader = ({
                 </p>
             </div>
 
-            {/* Changed flex-wrap to lg:flex-nowrap and reduced gap to gap-2 */}
             <div className='flex flex-col sm:flex-row w-full lg:w-auto gap-2 flex-wrap lg:flex-nowrap items-center'>
-                {/* Search Bar - Reduced width from w-52 to w-44 */}
+                {/* Search Bar */}
                 <div className='relative w-full sm:w-auto'>
                     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                         <FiSearch className='text-gray-400' />
@@ -35,9 +44,10 @@ const LeadsHeader = ({
                         placeholder='Search leads...'
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className='pl-10 pr-4 py-2 w-full sm:w-44 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm'
+                        className='pl-10 pr-4 py-2 w-full sm:w-40 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm'
                     />
                 </div>
+
                 {/* Status Filter */}
                 <div className='relative w-full sm:w-auto'>
                     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -59,6 +69,29 @@ const LeadsHeader = ({
                         <option value='JUNK'>Junk</option>
                     </select>
                 </div>
+
+                {/* NEW: Follow-Up Date Filter (Available to both Admin & Sales) */}
+                <div className='relative w-full sm:w-auto flex items-center'>
+                    <div className='absolute left-3 pointer-events-none text-gray-400'>
+                        <FiCalendar />
+                    </div>
+                    <input
+                        type='date'
+                        value={followUpDateFilter || ''}
+                        onChange={(e) => setFollowUpDateFilter(e.target.value)}
+                        className='pl-10 pr-3 py-2 w-full sm:w-auto border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-700'
+                        title='Filter by Next Follow-Up Date'
+                    />
+                    {followUpDateFilter && (
+                        <button
+                            onClick={() => setFollowUpDateFilter('')}
+                            className='ml-1 text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap'
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+
                 {/* Assignee Filter - ONLY ADMINS */}
                 {isAdmin && (
                     <div className='relative w-full sm:w-auto'>
@@ -79,9 +112,7 @@ const LeadsHeader = ({
                         </select>
                     </div>
                 )}
-                {/* Import CSV Button */}
 
-                {console.log(isAdmin)}
                 {isAdmin && (
                     <button
                         onClick={onImportClick}
@@ -91,7 +122,7 @@ const LeadsHeader = ({
                         Import CSV
                     </button>
                 )}
-                {/* Add Button */}
+
                 <button
                     onClick={onAddClick}
                     className='flex items-center justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors whitespace-nowrap w-full sm:w-auto'

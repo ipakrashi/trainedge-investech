@@ -1,3 +1,4 @@
+// src/pages/Leads.jsx
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 import LeadsHeader from '../components/leads/LeadsHeader'
@@ -21,9 +22,11 @@ const Leads = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState(null)
 
+    // Filter States
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('All')
     const [assigneeFilter, setAssigneeFilter] = useState('All')
+    const [followUpDateFilter, setFollowUpDateFilter] = useState('') // NEW: Follow-up date state
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingLead, setEditingLead] = useState(null)
@@ -34,7 +37,14 @@ const Leads = () => {
     const fetchData = async () => {
         try {
             setIsLoading(true)
-            const leadsRes = await api.get('/leads')
+
+            // Build the query string dynamically based on filters
+            let queryParams = ''
+            if (followUpDateFilter) {
+                queryParams += `?followUpDate=${followUpDateFilter}`
+            }
+
+            const leadsRes = await api.get(`/leads${queryParams}`)
             setLeads(leadsRes.data.data || [])
 
             if (isAdmin) {
@@ -58,10 +68,11 @@ const Leads = () => {
         }
     }
 
+    // Refetch data from backend specifically when the date filter changes
     useEffect(() => {
         fetchData()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [followUpDateFilter])
 
     const handleOpenModal = (lead = null) => {
         setEditingLead(lead)
@@ -102,6 +113,7 @@ const Leads = () => {
         }
     }
 
+    // Frontend filtering for text, status, and assignee
     const filteredLeads = (leads || []).filter((lead) => {
         const matchesSearch =
             lead?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -127,6 +139,7 @@ const Leads = () => {
     const handleCloseActivityPanel = () => {
         setActiveLeadForActivity(null)
         setIsActivityPanelOpen(false)
+        fetchData() // Refresh leads list when panel closes in case follow-up date was updated
     }
 
     const handleCSVImport = async (e) => {
@@ -151,7 +164,7 @@ const Leads = () => {
         }
     }
 
-    if (isLoading)
+    if (isLoading && leads.length === 0)
         return (
             <div className='flex items-center justify-center h-[calc(100vh-64px)]'>
                 <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
@@ -166,7 +179,6 @@ const Leads = () => {
         )
 
     return (
-        // Flexbox Wrapper: Locks to exact screen height beneath Navbar and hides outer scroll
         <div className='bg-gray-50 lg:h-[calc(100vh-64px)] lg:overflow-hidden flex flex-col py-6'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex flex-col min-h-0'>
                 <input
@@ -177,7 +189,6 @@ const Leads = () => {
                     onChange={handleCSVImport}
                 />
 
-                {/* shrink-0 prevents the header from being squished by the table */}
                 <div className='shrink-0'>
                     <LeadsHeader
                         searchQuery={searchQuery}
@@ -186,6 +197,8 @@ const Leads = () => {
                         setStatusFilter={setStatusFilter}
                         assigneeFilter={assigneeFilter}
                         setAssigneeFilter={setAssigneeFilter}
+                        followUpDateFilter={followUpDateFilter}
+                        setFollowUpDateFilter={setFollowUpDateFilter}
                         usersList={usersList}
                         isAdmin={isAdmin}
                         onAddClick={() => handleOpenModal(null)}
@@ -195,8 +208,13 @@ const Leads = () => {
                     />
                 </div>
 
-                {/* flex-1 passes the remaining dynamic space down to the table */}
-                <div className='flex-1 min-h-0 pb-4'>
+                <div className='flex-1 min-h-0 pb-4 relative'>
+                    {/* Overlay spinner when fetching new dates but keeping table visible */}
+                    {isLoading && leads.length > 0 && (
+                        <div className='absolute inset-0 bg-white/50 z-20 flex items-center justify-center'>
+                            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+                        </div>
+                    )}
                     <LeadsTable
                         leads={filteredLeads}
                         onEditClick={handleOpenModal}

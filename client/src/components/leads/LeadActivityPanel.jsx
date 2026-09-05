@@ -1,3 +1,4 @@
+// src/components/leads/LeadActivityPanel.jsx
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import {
@@ -8,6 +9,7 @@ import {
     FiFileText,
     FiMonitor,
     FiAlertCircle,
+    FiCalendar,
 } from 'react-icons/fi'
 
 const LeadActivityPanel = ({
@@ -24,10 +26,17 @@ const LeadActivityPanel = ({
     const [type, setType] = useState('NOTE')
     const [summary, setSummary] = useState('')
     const [callOutcome, setCallOutcome] = useState('CONNECTED')
+    const [nextFollowUpDate, setNextFollowUpDate] = useState('')
 
     useEffect(() => {
         if (isOpen && lead) {
             fetchActivities()
+            // Pre-populate if lead already has an existing follow-up date
+            setNextFollowUpDate(
+                lead.nextFollowUpDate
+                    ? lead.nextFollowUpDate.split('T')[0]
+                    : '',
+            )
         }
     }, [isOpen, lead])
 
@@ -54,6 +63,7 @@ const LeadActivityPanel = ({
                 type,
                 summary,
                 details: type === 'CALL' ? { callOutcome } : {},
+                nextFollowUpDate: nextFollowUpDate || undefined,
             }
             await api.post('/lead-activities', payload)
 
@@ -61,7 +71,6 @@ const LeadActivityPanel = ({
             setType('NOTE')
             await fetchActivities()
 
-            // Notify parent to confirm the stage move
             if (onActivitySuccess) {
                 onActivitySuccess()
             }
@@ -121,7 +130,7 @@ const LeadActivityPanel = ({
                             {lead?.fullName}
                         </h2>
                         <p className='text-xs text-gray-500'>
-                            Activity Timeline
+                            Activity Timeline & Follow-Up
                         </p>
                     </div>
                     <button
@@ -177,6 +186,22 @@ const LeadActivityPanel = ({
                             onChange={(e) => setSummary(e.target.value)}
                             className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 resize-none'
                         />
+
+                        {/* Integrated Next Follow-Up Date Field */}
+                        <div>
+                            <label className='block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1'>
+                                <FiCalendar className='text-blue-500' /> Next
+                                Follow-Up Date (Optional)
+                            </label>
+                            <input
+                                type='date'
+                                value={nextFollowUpDate}
+                                onChange={(e) =>
+                                    setNextFollowUpDate(e.target.value)
+                                }
+                                className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                            />
+                        </div>
 
                         <button
                             type='submit'

@@ -8,12 +8,12 @@ const checkIsAdmin = (user) => {
     return roleName.toString().toLowerCase() === 'admin'
 }
 
-// @desc    Add a new activity/interaction to a lead
+// @desc    Add a new activity/interaction to a lead and optionally update follow-up date
 // @route   POST /api/lead-activities
 // @access  Private
 export const createActivity = async (req, res) => {
     try {
-        const { lead, type, summary, details } = req.body
+        const { lead, type, summary, details, nextFollowUpDate } = req.body
 
         // Verify the associated lead exists
         const existingLead = await leadModel.findById(lead)
@@ -39,11 +39,18 @@ export const createActivity = async (req, res) => {
 
         const activity = await leadActivityModel.create({
             lead,
-            performedBy: req.user._id, // Automatically assign the logged-in user
+            performedBy: req.user._id,
             type,
             summary,
             details,
         })
+
+        // If a next follow-up date was provided directly from the drawer, update the lead record simultaneously
+        if (nextFollowUpDate) {
+            await leadModel.findByIdAndUpdate(lead, {
+                nextFollowUpDate: new Date(nextFollowUpDate),
+            })
+        }
 
         res.status(201).json({
             success: true,
@@ -71,7 +78,6 @@ export const createActivity = async (req, res) => {
 // @access  Private
 export const getActivitiesByLead = async (req, res) => {
     try {
-        // Find the lead to check authorization
         const lead = await leadModel.findById(req.params.leadId)
 
         if (!lead) {
@@ -95,7 +101,7 @@ export const getActivitiesByLead = async (req, res) => {
         const activities = await leadActivityModel
             .find({ lead: req.params.leadId })
             .populate('performedBy', 'firstName lastName email role')
-            .sort({ createdAt: -1 }) // Newest activities first for the timeline view
+            .sort({ createdAt: -1 })
 
         res.status(200).json({
             success: true,
@@ -116,7 +122,7 @@ export const getActivitiesByLead = async (req, res) => {
     }
 }
 
-// @desc    Update a specific activity (e.g., editing a note)
+// @desc    Update a specific activity
 // @route   PUT /api/activities/:id
 // @access  Private
 export const updateActivity = async (req, res) => {
@@ -131,7 +137,6 @@ export const updateActivity = async (req, res) => {
 
         const isAdmin = checkIsAdmin(req.user)
 
-        // Security check: Only the user who created the activity or an Admin can edit it
         if (
             !isAdmin &&
             activity.performedBy.toString() !== req.user._id.toString()
@@ -142,7 +147,6 @@ export const updateActivity = async (req, res) => {
             })
         }
 
-        // Prevent changing the associated lead or author during an update
         const { lead, performedBy, ...updateData } = req.body
 
         activity = await leadActivityModel
@@ -188,7 +192,6 @@ export const deleteActivity = async (req, res) => {
 
         const isAdmin = checkIsAdmin(req.user)
 
-        // Security check: Only Admins or the original author can delete an activity
         if (
             !isAdmin &&
             activity.performedBy.toString() !== req.user._id.toString()
