@@ -179,7 +179,7 @@ const Leads = () => {
         )
 
     return (
-        <div className='bg-gray-50 lg:h-[calc(100vh-64px)] lg:overflow-hidden flex flex-col py-6'>
+        <div className='bg-gray-50 h-full  flex flex-col py-6'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex flex-col min-h-0'>
                 <input
                     type='file'
