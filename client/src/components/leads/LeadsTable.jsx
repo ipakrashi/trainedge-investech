@@ -8,7 +8,12 @@ const LeadsTable = ({
     onViewActivityClick,
     isAdmin,
 }) => {
-    const formatFollowUpDate = (dateString) => {
+    const formatFollowUpDate = (dateString, status) => {
+        // Hide follow-up warnings for terminal lead statuses
+        if (['ENROLLED', 'LOST', 'JUNK'].includes(status)) {
+            return <span className='text-gray-400 font-medium text-xs'>-</span>
+        }
+
         if (!dateString)
             return (
                 <span className='text-gray-400 italic text-xs'>
@@ -119,6 +124,7 @@ const LeadsTable = ({
                                     <td className='px-6 py-4'>
                                         {formatFollowUpDate(
                                             lead.nextFollowUpDate,
+                                            lead.status,
                                         )}
                                     </td>
                                     <td className='px-6 py-4 font-medium text-gray-900'>
