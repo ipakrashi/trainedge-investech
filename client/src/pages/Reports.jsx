@@ -359,28 +359,51 @@ const Reports = () => {
     // 6. CSV Export Logics
     const handleExportSalesCSV = () => {
         if (!filteredLeads.length) return alert('No data to export.')
+
+        // Added Lead Owner to headers
         const headers = [
             'Full Name',
             'Email',
             'Phone',
             'Source',
             'Status',
+            'Lead Owner',
             'Estimated Value',
             'Created At',
+            'Last Interaction Date',
+            'Next Follow-Up Date',
         ]
-        const csvRows = filteredLeads.map((lead) =>
-            [
+
+        const csvRows = filteredLeads.map((lead) => {
+            // Resolve Lead Owner Name
+            const ownerName = lead.assignedTo
+                ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() ||
+                  lead.assignedTo.email
+                : 'Unassigned'
+
+            return [
                 lead.fullName || '',
                 lead.email || '',
                 lead.phone || '',
                 lead.source || '',
                 lead.status || '',
+                ownerName,
                 lead.estimatedValue || 0,
-                new Date(lead.createdAt).toLocaleDateString('en-IN'),
+                lead.createdAt
+                    ? new Date(lead.createdAt).toLocaleDateString('en-IN')
+                    : '',
+                lead.updatedAt
+                    ? new Date(lead.updatedAt).toLocaleDateString('en-IN')
+                    : '-',
+                lead.nextFollowUpDate
+                    ? new Date(lead.nextFollowUpDate).toLocaleDateString(
+                          'en-IN',
+                      )
+                    : 'Not scheduled',
             ]
                 .map((val) => `"${String(val).replace(/"/g, '""')}"`)
-                .join(','),
-        )
+                .join(',')
+        })
         triggerDownload(headers, csvRows, 'sales_pipeline')
     }
 
