@@ -15,7 +15,10 @@ router
     .post(admin, batchController.createBatch)
 
 // GET /api/batches/:id (Admin & Faculty)
-router.route('/:id').get(batchController.getBatchById)
+router
+    .route('/:id')
+    .get(batchController.getBatchById)
+    .put(admin, batchController.updateBatch)
 
 // PUT /api/batches/:id/students (Admin Only - Assigning students to a cohort)
 router.route('/:id/students').put(admin, batchController.addStudentsToBatch)

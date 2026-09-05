@@ -1,5 +1,6 @@
+// src/components/common/Navbar.jsx
 import { useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import {
     FiMenu,
     FiX,
@@ -22,7 +23,6 @@ import LogoutButton from '../common/LogoutButton'
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false)
     const [isAdminOpen, setIsAdminOpen] = useState(false)
-    const navigate = useNavigate()
 
     const toggleMenu = () => setIsOpen(!isOpen)
 
@@ -141,6 +141,15 @@ const Navbar = () => {
                                                 >
                                                     <FiClock /> Map Pending
                                                     Students
+                                                </Link>
+                                                <Link
+                                                    to='/batches'
+                                                    className='flex items-center gap-3 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-medium'
+                                                    onClick={() =>
+                                                        setIsAdminOpen(false)
+                                                    }
+                                                >
+                                                    <FiUsers /> Manage Batches
                                                 </Link>
                                             </>
                                         )}
@@ -264,10 +273,10 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* Mobile Navigation Menu Drawer */}
+            {/* Mobile Navigation Menu Drawer - Fixed scrolling & bottom clearance */}
             {isOpen && (
-                <div className='md:hidden bg-white border-t border-gray-100 shadow-xl absolute w-full left-0 z-50 max-h-[calc(100vh-4rem)] overflow-y-auto'>
-                    <div className='px-4 pt-3 pb-8 space-y-1 flex flex-col'>
+                <div className='md:hidden bg-white border-t border-gray-100 shadow-2xl absolute w-full left-0 z-50 max-h-[calc(100vh-4rem)] overflow-y-auto'>
+                    <div className='px-4 pt-3 pb-24 space-y-1 flex flex-col'>
                         <div className='flex items-center text-gray-600 py-3 px-1 border-b border-gray-100 mb-2 font-medium'>
                             <FiUser className='text-xl mr-3 text-gray-400' />
                             <span>Welcome: {displayName}</span>
@@ -354,6 +363,13 @@ const Navbar = () => {
                                             Modes
                                         </Link>
                                         <Link
+                                            to='/batches'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium rounded-lg transition-colors'
+                                        >
+                                            <FiUsers /> Manage Batches
+                                        </Link>
+                                        <Link
                                             to='/admin/pending-students'
                                             onClick={toggleMenu}
                                             className='flex items-center gap-3 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium rounded-lg transition-colors'
@@ -414,8 +430,7 @@ const Navbar = () => {
                             </>
                         ) : null}
 
-                        <div className='border-t border-gray-100 my-2 pt-2'></div>
-                        <div className='pt-1'>
+                        <div className='border-t border-gray-100 my-4 pt-3'>
                             <LogoutButton />
                         </div>
                     </div>

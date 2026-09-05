@@ -137,9 +137,48 @@ const addStudentsToBatch = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: updatedBatch })
 })
 
+// @desc    Update batch record details
+// @route   PUT /api/batches/:id
+// @access  Private/Admin
+const updateBatch = asyncHandler(async (req, res) => {
+    const { batchName, course, faculty, startDate, endDate, status } = req.body
+
+    const batch = await Batch.findById(req.params.id)
+    if (!batch) {
+        res.status(404)
+        throw new Error('Batch not found')
+    }
+
+    // Check name uniqueness if changed
+    if (batchName && batchName !== batch.batchName) {
+        const nameExists = await Batch.findOne({ batchName })
+        if (nameExists) {
+            res.status(400)
+            throw new Error('A batch with this name already exists')
+        }
+    }
+
+    batch.batchName = batchName || batch.batchName
+    batch.course = course || batch.course
+    batch.faculty = faculty || batch.faculty
+    batch.startDate = startDate || batch.startDate
+    batch.endDate = endDate !== undefined ? endDate : batch.endDate
+    batch.status = status || batch.status
+
+    const updatedBatch = await batch.save()
+
+    const populatedBatch = await Batch.findById(updatedBatch._id)
+        .populate('course', 'courseTitle category durationWeeks')
+        .populate('faculty', 'firstName lastName email')
+
+    res.status(200).json({ success: true, data: populatedBatch })
+})
+
+// Remember to export updateBatch in your export object at the bottom of the controller file:
 export default {
     createBatch,
     getBatches,
     getBatchById,
     addStudentsToBatch,
+    updateBatch,
 }

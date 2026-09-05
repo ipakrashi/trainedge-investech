@@ -1,3 +1,4 @@
+// src/pages/BatchesOverview.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
@@ -8,13 +9,32 @@ import {
     FiBookOpen,
     FiPlus,
     FiChevronRight,
+    FiEdit2,
+    FiX,
+    FiCheck,
 } from 'react-icons/fi'
 
 const BatchesOverview = () => {
     const [batches, setBatches] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState(null)
-    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+
+    // --- EDIT BATCH STATE ---
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [selectedBatch, setSelectedBatch] = useState(null)
+    const [editForm, setEditForm] = useState({
+        batchName: '',
+        course: '',
+        faculty: '',
+        startDate: '',
+        endDate: '',
+        status: 'UPCOMING',
+    })
+    const [courses, setCourses] = useState([])
+    const [facultyList, setFacultyList] = useState([])
+    const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
+
     const navigate = useNavigate()
 
     const userInfoString = localStorage.getItem('userInfo')
@@ -28,7 +48,10 @@ const BatchesOverview = () => {
 
     useEffect(() => {
         fetchBatches()
-    }, [])
+        if (isAdmin) {
+            fetchCoursesAndFaculty()
+        }
+    }, [isAdmin])
 
     const fetchBatches = async () => {
         try {
@@ -41,6 +64,58 @@ const BatchesOverview = () => {
             setError(err.response?.data?.message || 'Failed to fetch batches')
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const fetchCoursesAndFaculty = async () => {
+        try {
+            const [coursesRes, usersRes] = await Promise.all([
+                axios.get('/api/courses', { withCredentials: true }),
+                axios.get('/api/users', { withCredentials: true }),
+            ])
+            setCourses(coursesRes.data.data || coursesRes.data || [])
+            const users = usersRes.data.data || usersRes.data || []
+            setFacultyList(
+                users.filter((u) => {
+                    const r = (u.role?.name || u.role || '').toLowerCase()
+                    return r === 'faculty'
+                }),
+            )
+        } catch (err) {
+            console.error(
+                'Failed to load courses or faculty for edit modal',
+                err,
+            )
+        }
+    }
+
+    const handleOpenEdit = (e, batch) => {
+        e.stopPropagation() // Prevent card click navigation
+        setSelectedBatch(batch)
+        setEditForm({
+            batchName: batch.batchName || '',
+            course: batch.course?._id || batch.course || '',
+            faculty: batch.faculty?._id || batch.faculty || '',
+            startDate: batch.startDate ? batch.startDate.slice(0, 10) : '',
+            endDate: batch.endDate ? batch.endDate.slice(0, 10) : '',
+            status: batch.status || 'UPCOMING',
+        })
+        setIsEditModalOpen(true)
+    }
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault()
+        setIsSubmittingEdit(true)
+        try {
+            await axios.put(`/api/batches/${selectedBatch._id}`, editForm, {
+                withCredentials: true,
+            })
+            setIsEditModalOpen(false)
+            fetchBatches()
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to update batch')
+        } finally {
+            setIsSubmittingEdit(false)
         }
     }
 
@@ -76,7 +151,7 @@ const BatchesOverview = () => {
                 {isAdmin && (
                     <div className='mt-4 sm:mt-0'>
                         <button
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => setIsCreateModalOpen(true)}
                             className='inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors'
                         >
                             <FiPlus className='-ml-1 mr-2 h-5 w-5' />
@@ -116,7 +191,7 @@ const BatchesOverview = () => {
                         <div
                             key={batch._id}
                             onClick={() => navigate(`/batches/${batch._id}`)}
-                            className='bg-white rounded-xl shadow-sm border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col'
+                            className='bg-white rounded-xl shadow-sm border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col relative'
                         >
                             <div className='p-5 flex-grow'>
                                 <div className='flex justify-between items-start mb-4'>
@@ -125,7 +200,20 @@ const BatchesOverview = () => {
                                     >
                                         {batch.status}
                                     </span>
-                                    <FiChevronRight className='text-gray-400' />
+                                    <div className='flex items-center gap-2'>
+                                        {isAdmin && (
+                                            <button
+                                                onClick={(e) =>
+                                                    handleOpenEdit(e, batch)
+                                                }
+                                                title='Edit Batch'
+                                                className='p-1.5 bg-gray-100 hover:bg-blue-50 text-gray-600 hover:text-blue-600 rounded-lg transition-colors'
+                                            >
+                                                <FiEdit2 size={14} />
+                                            </button>
+                                        )}
+                                        <FiChevronRight className='text-gray-400' />
+                                    </div>
                                 </div>
                                 <h3 className='text-lg font-bold text-gray-900 mb-1 truncate'>
                                     {batch.batchName}
@@ -169,14 +257,174 @@ const BatchesOverview = () => {
                     ))}
                 </div>
             )}
+
+            {/* Create Batch Modal */}
             <CreateBatchModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
                 onSuccess={() => {
-                    setIsModalOpen(false)
+                    setIsCreateModalOpen(false)
                     fetchBatches()
                 }}
             />
+
+            {/* Admin Edit Batch Modal */}
+            {isEditModalOpen && isAdmin && (
+                <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm'>
+                    <div className='bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden'>
+                        <div className='flex justify-between items-center p-6 border-b border-gray-100'>
+                            <h2 className='text-xl font-bold text-gray-900'>
+                                Edit Batch Record
+                            </h2>
+                            <button
+                                onClick={() => setIsEditModalOpen(false)}
+                                className='text-gray-400 hover:text-gray-600 transition-colors'
+                            >
+                                <FiX size={24} />
+                            </button>
+                        </div>
+
+                        <form
+                            onSubmit={handleEditSubmit}
+                            className='p-6 space-y-4'
+                        >
+                            <div>
+                                <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                    Batch Name
+                                </label>
+                                <input
+                                    type='text'
+                                    required
+                                    value={editForm.batchName}
+                                    onChange={(e) =>
+                                        setEditForm({
+                                            ...editForm,
+                                            batchName: e.target.value,
+                                        })
+                                    }
+                                    className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none'
+                                />
+                            </div>
+
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        Course
+                                    </label>
+                                    <select
+                                        required
+                                        value={editForm.course}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                course: e.target.value,
+                                            })
+                                        }
+                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white'
+                                    >
+                                        <option value=''>Select Course</option>
+                                        {courses.map((c) => (
+                                            <option key={c._id} value={c._id}>
+                                                {c.courseTitle}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        Assigned Faculty
+                                    </label>
+                                    <select
+                                        required
+                                        value={editForm.faculty}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                faculty: e.target.value,
+                                            })
+                                        }
+                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white'
+                                    >
+                                        <option value=''>Select Faculty</option>
+                                        {facultyList.map((f) => (
+                                            <option key={f._id} value={f._id}>
+                                                {f.firstName} {f.lastName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        Start Date
+                                    </label>
+                                    <input
+                                        type='date'
+                                        required
+                                        value={editForm.startDate}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                startDate: e.target.value,
+                                            })
+                                        }
+                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none'
+                                    />
+                                </div>
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        Status
+                                    </label>
+                                    <select
+                                        value={editForm.status}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                status: e.target.value,
+                                            })
+                                        }
+                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white'
+                                    >
+                                        <option value='UPCOMING'>
+                                            UPCOMING
+                                        </option>
+                                        <option value='ACTIVE'>ACTIVE</option>
+                                        <option value='COMPLETED'>
+                                            COMPLETED
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className='flex justify-end gap-3 pt-6 border-t border-gray-100'>
+                                <button
+                                    type='button'
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    className='px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50'
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type='submit'
+                                    disabled={isSubmittingEdit}
+                                    className='px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center'
+                                >
+                                    {isSubmittingEdit ? (
+                                        'Saving...'
+                                    ) : (
+                                        <>
+                                            <FiCheck className='mr-1.5' /> Save
+                                            Changes
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
