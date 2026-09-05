@@ -1,6 +1,5 @@
 import express from 'express'
 import evaluationController from '../controllers/evaluationControllers.js'
-import evaluationController from '../controllers/evaluationControllers.js'
 import { protect } from '../middlewares/authMiddleware.js'
 
 const router = express.Router()
