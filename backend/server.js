@@ -10,10 +10,13 @@ import roleRoutes from './routes/roleRoutes.js'
 import sourceRoutes from './routes/sourceRoutes.js'
 import statusRoutes from './routes/statusRoutes.js'
 import experienceRoutes from './routes/experienceRoutes.js'
-import studentRoutes from './routes/studentRoutes.js' // <-- Added Student Routes Import
+import studentRoutes from './routes/studentRoutes.js'
 import analyticsRoutes from './routes/analyticsRoutes.js'
 import paymentModeRoutes from './routes/paymentModeRoutes.js'
 import paymentRoutes from './routes/paymentRoutes.js'
+import batchRoutes from './routes/batchRoutes.js'
+import evaluationRoutes from './routes/evaluationRoutes.js'
+import sessionLogRoutes from './routes/sessionLogRoutes.js'
 
 import cookieParser from 'cookie-parser'
 import path from 'path'
@@ -43,17 +46,19 @@ app.use('/api/roles', roleRoutes)
 app.use('/api/sources', sourceRoutes)
 app.use('/api/statuses', statusRoutes)
 app.use('/api/experiences', experienceRoutes)
-app.use('/api/students', studentRoutes) // <-- Mounted Student Routes Endpoint
+app.use('/api/students', studentRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/payment-modes', paymentModeRoutes)
 app.use('/api/payments', paymentRoutes)
+app.use('/api/batches', batchRoutes)
+app.use('/api/evaluations', evaluationRoutes)
+app.use('/api/sessions', sessionLogRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {
     const clientBuildPath = path.join(__dirname, '../client/dist')
     app.use(express.static(clientBuildPath))
 
-    // FIX: Replaced the string '*' with the Regular Expression /(.*)/
     app.get(/(.*)/, (req, res) => {
         res.sendFile(path.join(clientBuildPath, 'index.html'))
     })
@@ -66,14 +71,11 @@ if (process.env.NODE_ENV === 'production') {
 
 // Custom Error Handlers
 app.use((err, req, res, next) => {
-    // If the status code is still 200, change it to 500 (Server Error)
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode
     res.status(statusCode)
 
-    // Return a JSON response with the error message
     res.json({
         message: err.message,
-        // Only show the stack trace if you are in development mode
         stack: process.env.NODE_ENV === 'production' ? null : err.stack,
     })
 })

@@ -3,6 +3,7 @@ import leadModel from '../models/leadModel.js'
 import studentModel from '../models/studentModel.js'
 import userModel from '../models/userModel.js'
 import paymentModel from '../models/paymentModel.js'
+import batchModel from '../models/batchModel.js' // <-- NEW IMPORT
 import asyncHandler from 'express-async-handler'
 
 // @desc    Get role-scoped analytics dashboard data
@@ -15,22 +16,33 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
     const isSales = roleName === 'sales'
     const isAccounts = roleName === 'accounts'
 
-    // 1. FACULTY ANALYTICS VIEW
+    // 1. FACULTY ANALYTICS VIEW - Purely Academic (No Financials)
     if (isFaculty) {
+        // Fetch students and convert to plain JS objects (.lean()) so we can inject batch data
         const students = await studentModel
             .find({ assignedFaculty: req.user._id })
             .populate('enrolledCourses', 'courseTitle fee')
+            .lean()
+
+        // Fetch all batches assigned to this faculty member
+        const batches = await batchModel.find({ faculty: req.user._id }).lean()
 
         const totalStudents = students.length
         const activeStudents = students.filter(
             (s) => s.status === 'ACTIVE',
         ).length
 
-        let totalAssignedFees = 0
-        let totalCollectedFees = 0
-        students.forEach((s) => {
-            totalAssignedFees += s.totalFee || 0
-            totalCollectedFees += s.paidAmount || 0
+        // Map the respective cohorts/batches into each student's object
+        const studentsWithBatches = students.map((student) => {
+            const studentBatches = batches.filter((b) =>
+                b.students?.some(
+                    (sId) => sId.toString() === student._id.toString(),
+                ),
+            )
+            return {
+                ...student,
+                batches: studentBatches,
+            }
         })
 
         return res.status(200).json({
@@ -39,14 +51,7 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
             data: {
                 totalStudents,
                 activeStudents,
-                totalAssignedFees,
-                totalCollectedFees,
-                collectionRate: totalAssignedFees
-                    ? ((totalCollectedFees / totalAssignedFees) * 100).toFixed(
-                          1,
-                      )
-                    : 0,
-                studentsList: students,
+                studentsList: studentsWithBatches,
             },
         })
     }

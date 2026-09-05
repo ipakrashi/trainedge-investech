@@ -8,6 +8,7 @@ import {
     FiCheckCircle,
     FiCreditCard,
     FiTarget,
+    FiLayers,
 } from 'react-icons/fi'
 import api from '../api/axios'
 import StatCard from '../components/common/StatCard'
@@ -118,13 +119,8 @@ const Dashboard = () => {
     // 1. FACULTY DASHBOARD VIEW
     // ==========================================
     if (userRole === 'faculty') {
-        const {
-            totalStudents,
-            activeStudents,
-            totalCollectedFees,
-            collectionRate,
-            studentsList,
-        } = dashboardData || {}
+        const { totalStudents, activeStudents, studentsList } =
+            dashboardData || {}
         return (
             <div className='bg-gray-50 min-h-screen py-8'>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -133,12 +129,13 @@ const Dashboard = () => {
                             Faculty Academic Dashboard
                         </h1>
                         <p className='text-gray-500 text-sm mt-1'>
-                            Monitor your active student roster and fee
+                            Monitor your active student roster and academic
                             progression.
                         </p>
                     </div>
 
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+                    {/* Removed Financial Cards, focused purely on Academic metrics */}
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8'>
                         <StatCard
                             title='Total Students'
                             value={totalStudents || 0}
@@ -150,18 +147,6 @@ const Dashboard = () => {
                             value={activeStudents || 0}
                             icon={FiCheckCircle}
                             colorClass='bg-green-50 text-green-600'
-                        />
-                        <StatCard
-                            title='Collected Revenue'
-                            value={`₹${(totalCollectedFees || 0).toLocaleString('en-IN')}`}
-                            icon={FiDollarSign}
-                            colorClass='bg-purple-50 text-purple-600'
-                        />
-                        <StatCard
-                            title='Collection Rate'
-                            value={`${collectionRate || 0}%`}
-                            icon={FiTrendingUp}
-                            colorClass='bg-orange-50 text-orange-600'
                         />
                     </div>
 
@@ -182,8 +167,8 @@ const Dashboard = () => {
                                         <th className='px-6 py-3 font-medium'>
                                             Courses
                                         </th>
-                                        <th className='px-6 py-3 text-right font-medium'>
-                                            Payment Status
+                                        <th className='px-6 py-3 font-medium'>
+                                            Cohort / Batch
                                         </th>
                                     </tr>
                                 </thead>
@@ -201,25 +186,38 @@ const Dashboard = () => {
                                                 <div>{s.phone}</div>
                                             </td>
                                             <td className='px-6 py-4'>
-                                                {(s.enrolledCourses || []).map(
-                                                    (c) => (
+                                                <div className='flex flex-col gap-1'>
+                                                    {(
+                                                        s.enrolledCourses || []
+                                                    ).map((c) => (
                                                         <span
                                                             key={c._id}
-                                                            className='bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs mr-1 inline-block'
+                                                            className='bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs inline-block w-fit'
                                                         >
                                                             {c.courseTitle}
                                                         </span>
-                                                    ),
-                                                )}
+                                                    ))}
+                                                </div>
                                             </td>
-                                            <td className='px-6 py-4 text-right'>
-                                                <span
-                                                    className={`px-2 py-1 rounded text-xs font-bold ${s.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : s.paymentStatus === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}
-                                                >
-                                                    {s.paymentStatus} (₹
-                                                    {s.paidAmount}/₹{s.totalFee}
-                                                    )
-                                                </span>
+                                            <td className='px-6 py-4'>
+                                                <div className='flex flex-col gap-1'>
+                                                    {s.batches &&
+                                                    s.batches.length > 0 ? (
+                                                        s.batches.map((b) => (
+                                                            <span
+                                                                key={b._id}
+                                                                className='inline-flex items-center bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-xs font-medium w-fit'
+                                                            >
+                                                                <FiLayers className='mr-1' />
+                                                                {b.batchName}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className='text-gray-400 text-xs italic'>
+                                                            Unassigned
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

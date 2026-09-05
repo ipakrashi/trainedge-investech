@@ -48,12 +48,12 @@ const Navbar = () => {
     return (
         <nav className='bg-white shadow-sm border-b border-gray-200 w-full sticky top-0 z-50'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                <div className='grid grid-cols-[1fr_auto_1fr] items-center h-16'>
-                    {/* Brand Logo */}
-                    <div className='justify-self-start flex items-center'>
+                <div className='flex items-center justify-between h-16'>
+                    {/* Left Section: Brand Logo & User Welcome Message */}
+                    <div className='flex items-center space-x-6'>
                         <Link
                             to='/'
-                            className='text-lg font-bold text-blue-700 tracking-tight'
+                            className='text-lg font-bold text-blue-700 tracking-tight flex items-center'
                         >
                             <img
                                 src={'/Logo_final-NOBG.png'}
@@ -61,16 +61,21 @@ const Navbar = () => {
                                 className='w-15'
                             />
                         </Link>
+                        <div className='hidden lg:flex items-center text-gray-600 border-l border-gray-200 pl-6'>
+                            <FiUser className='text-lg mr-2 text-gray-400' />
+                            <span className='font-medium text-sm whitespace-nowrap'>
+                                Welcome: {displayName}
+                            </span>
+                        </div>
                     </div>
 
-                    {/* Desktop Navigation */}
-                    <div className='hidden md:flex items-center space-x-8 justify-self-center'>
-                        <div className='flex space-x-8 items-center'>
+                    {/* Right Section: Navigation Links, Admin/Finance Dropdown & Logout */}
+                    <div className='hidden md:flex items-center space-x-6'>
+                        <div className='flex space-x-6 items-center text-sm font-medium'>
                             <NavLink to='/' className={navClass}>
                                 Dashboard
                             </NavLink>
 
-                            {/* Whitelisted for Admin & Sales Only */}
                             {(isAdmin || isSales) && (
                                 <>
                                     <NavLink to='/leads' className={navClass}>
@@ -85,14 +90,20 @@ const Navbar = () => {
                                 </>
                             )}
 
-                            {/* Whitelisted for Admin & Faculty Only */}
                             {(isAdmin || isFaculty) && (
-                                <NavLink to='/students' className={navClass}>
-                                    Students
-                                </NavLink>
+                                <>
+                                    <NavLink
+                                        to='/students'
+                                        className={navClass}
+                                    >
+                                        Students
+                                    </NavLink>
+                                    <NavLink to='/batches' className={navClass}>
+                                        Batches
+                                    </NavLink>
+                                </>
                             )}
 
-                            {/* Reports viewable by Admin, Sales, and Accounts */}
                             {(isAdmin || isSales || isAccounts) && (
                                 <NavLink to='/reports' className={navClass}>
                                     Reports
@@ -101,7 +112,7 @@ const Navbar = () => {
                         </div>
 
                         {/* Admin / Accounts Dropdown */}
-                        {isAdmin || isAccounts ? (
+                        {(isAdmin || isAccounts) && (
                             <div className='relative'>
                                 <button
                                     onClick={() => setIsAdminOpen(!isAdminOpen)}
@@ -232,22 +243,13 @@ const Navbar = () => {
                                     </div>
                                 )}
                             </div>
-                        ) : null}
-                    </div>
+                        )}
 
-                    {/* Desktop User Actions */}
-                    <div className='hidden md:flex items-center space-x-6 justify-self-end'>
-                        <button className='flex items-center text-gray-600 hover:text-blue-600 transition-colors'>
-                            <FiUser className='text-xl mr-2' />
-                            <span className='font-medium whitespace-nowrap'>
-                                Welcome: {displayName}
-                            </span>
-                        </button>
                         <LogoutButton />
                     </div>
 
                     {/* Mobile Menu Toggle Button */}
-                    <div className='md:hidden flex items-center justify-self-end col-start-3'>
+                    <div className='md:hidden flex items-center'>
                         <button
                             onClick={toggleMenu}
                             className='text-gray-600 hover:text-blue-600 focus:outline-none p-2'
@@ -262,10 +264,15 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* Mobile Navigation Menu Drawer - Fixed with max height and internal vertical scroll */}
+            {/* Mobile Navigation Menu Drawer */}
             {isOpen && (
                 <div className='md:hidden bg-white border-t border-gray-100 shadow-xl absolute w-full left-0 z-50 max-h-[calc(100vh-4rem)] overflow-y-auto'>
                     <div className='px-4 pt-3 pb-8 space-y-1 flex flex-col'>
+                        <div className='flex items-center text-gray-600 py-3 px-1 border-b border-gray-100 mb-2 font-medium'>
+                            <FiUser className='text-xl mr-3 text-gray-400' />
+                            <span>Welcome: {displayName}</span>
+                        </div>
+
                         <NavLink
                             to='/'
                             onClick={toggleMenu}
@@ -294,13 +301,22 @@ const Navbar = () => {
                         )}
 
                         {(isAdmin || isFaculty) && (
-                            <NavLink
-                                to='/students'
-                                onClick={toggleMenu}
-                                className={navClass}
-                            >
-                                Students
-                            </NavLink>
+                            <>
+                                <NavLink
+                                    to='/students'
+                                    onClick={toggleMenu}
+                                    className={navClass}
+                                >
+                                    Students
+                                </NavLink>
+                                <NavLink
+                                    to='/batches'
+                                    onClick={toggleMenu}
+                                    className={navClass}
+                                >
+                                    Batches
+                                </NavLink>
+                            </>
                         )}
 
                         {(isAdmin || isSales || isAccounts) && (
@@ -313,7 +329,6 @@ const Navbar = () => {
                             </NavLink>
                         )}
 
-                        {/* Management & Finance Links inside Mobile Drawer */}
                         {isAdmin || isAccounts ? (
                             <>
                                 <div className='border-t border-gray-100 my-2 pt-2'>
@@ -400,10 +415,6 @@ const Navbar = () => {
                         ) : null}
 
                         <div className='border-t border-gray-100 my-2 pt-2'></div>
-                        <div className='flex items-center text-gray-600 py-2 px-1 font-medium'>
-                            <FiUser className='text-xl mr-3 text-gray-400' />
-                            <span>{displayName}</span>
-                        </div>
                         <div className='pt-1'>
                             <LogoutButton />
                         </div>

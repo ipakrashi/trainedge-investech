@@ -8,6 +8,8 @@ import {
     FiDownload,
     FiCreditCard,
     FiBook,
+    FiLayers,
+    FiCheckCircle,
 } from 'react-icons/fi'
 import api from '../api/axios'
 import StatCard from '../components/common/StatCard'
@@ -36,7 +38,13 @@ const Reports = () => {
 
     const [allLeads, setAllLeads] = useState([])
     const [allPayments, setAllPayments] = useState([])
-    const [allStudents, setAllStudents] = useState([]) // New state for course aggregations
+    const [allStudents, setAllStudents] = useState([])
+    const [allBatches, setAllBatches] = useState([])
+
+    // Academic Report State
+    const [selectedBatchId, setSelectedBatchId] = useState('')
+    const [academicReportData, setAcademicReportData] = useState(null)
+    const [isAcademicLoading, setIsAcademicLoading] = useState(false)
 
     const [isLoading, setIsLoading] = useState(true)
 
@@ -45,8 +53,7 @@ const Reports = () => {
         const fetchAllData = async () => {
             setIsLoading(true)
             try {
-                // Determine which APIs to fire based on RBAC to prevent 403s
-                const [leadsRes, paymentsRes, studentsRes] =
+                const [leadsRes, paymentsRes, studentsRes, batchesRes] =
                     await Promise.allSettled([
                         isAdmin || isSales
                             ? api.get('/leads?limit=5000')
@@ -57,13 +64,23 @@ const Reports = () => {
                         isAdmin
                             ? api.get('/students?limit=5000')
                             : Promise.resolve({ data: { data: [] } }),
+                        isAdmin
+                            ? api.get('/batches')
+                            : Promise.resolve({ data: { data: [] } }),
                     ])
 
                 if (isAdmin || isSales)
                     setAllLeads(leadsRes.value?.data?.data || [])
                 if (isAdmin || isAccounts)
                     setAllPayments(paymentsRes.value?.data?.data || [])
-                if (isAdmin) setAllStudents(studentsRes.value?.data?.data || [])
+                if (isAdmin) {
+                    setAllStudents(studentsRes.value?.data?.data || [])
+                    const batchesList = batchesRes.value?.data?.data || []
+                    setAllBatches(batchesList)
+                    if (batchesList.length > 0) {
+                        setSelectedBatchId(batchesList[0]._id) // Default to first batch
+                    }
+                }
             } catch (error) {
                 console.error('Failed to fetch reporting data:', error)
             } finally {
@@ -72,6 +89,26 @@ const Reports = () => {
         }
         fetchAllData()
     }, [isAdmin, isSales, isAccounts])
+
+    // Fetch Academic Report when selected batch changes
+    useEffect(() => {
+        if (activeTab === 'academic' && selectedBatchId) {
+            const fetchAcademicReport = async () => {
+                setIsAcademicLoading(true)
+                try {
+                    const { data } = await api.get(
+                        `/evaluations/report/${selectedBatchId}`,
+                    )
+                    setAcademicReportData(data)
+                } catch (err) {
+                    console.error('Failed to fetch academic report', err)
+                } finally {
+                    setIsAcademicLoading(false)
+                }
+            }
+            fetchAcademicReport()
+        }
+    }, [activeTab, selectedBatchId])
 
     // 3. Process Sales Data
     const { filteredLeads, salesReportData } = useMemo(() => {
@@ -385,6 +422,39 @@ const Reports = () => {
         triggerDownload(headers, csvRows, 'course_enrollments')
     }
 
+    const handleExportAcademicCSV = () => {
+        if (!academicReportData || !academicReportData.data.length)
+            return alert('No academic data to export.')
+        const headers = [
+            'Exam Title',
+            'Exam Date',
+            'Student Name',
+            'Marks Obtained',
+            'Total Marks',
+            'Grade',
+            'Remarks',
+        ]
+        let rows = []
+        academicReportData.data.forEach((exam) => {
+            exam.records.forEach((rec) => {
+                rows.push(
+                    [
+                        exam.examTitle,
+                        new Date(exam.examDate).toLocaleDateString('en-IN'),
+                        rec.student?.fullName || 'Unknown',
+                        rec.obtainedMarks,
+                        exam.totalMarks,
+                        rec.grade || '-',
+                        rec.facultyRemarks || '-',
+                    ]
+                        .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+                        .join(','),
+                )
+            })
+        })
+        triggerDownload(headers, rows, 'academic_cohort_report')
+    }
+
     const triggerDownload = (headers, rows, filename) => {
         const csvContent = [headers.join(','), ...rows].join('\n')
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -413,30 +483,34 @@ const Reports = () => {
                             Analytics & Reports
                         </h1>
                         <p className='text-sm text-gray-500 mt-1'>
-                            Showing data for{' '}
+                            Showing records for{' '}
                             <span className='font-semibold text-blue-600'>
                                 {activeTab === 'sales' && filteredLeads.length}
                                 {activeTab === 'finance' &&
                                     filteredPayments.length}
                                 {activeTab === 'courses' &&
                                     courseReportData.totalEnrollments}
+                                {activeTab === 'academic' &&
+                                    (academicReportData?.data?.length || 0)}
                             </span>{' '}
-                            records.
+                            metrics.
                         </p>
                     </div>
 
                     <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
-                        <select
-                            value={timeRange}
-                            onChange={(e) => setTimeRange(e.target.value)}
-                            className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 bg-gray-50'
-                        >
-                            <option value='30d'>Last 30 Days</option>
-                            <option value='90d'>Last 90 Days</option>
-                            <option value='180d'>Last 6 Months</option>
-                            <option value='1y'>Last Year</option>
-                            <option value='all'>All Time</option>
-                        </select>
+                        {activeTab !== 'academic' && (
+                            <select
+                                value={timeRange}
+                                onChange={(e) => setTimeRange(e.target.value)}
+                                className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 bg-gray-50'
+                            >
+                                <option value='30d'>Last 30 Days</option>
+                                <option value='90d'>Last 90 Days</option>
+                                <option value='180d'>Last 6 Months</option>
+                                <option value='1y'>Last Year</option>
+                                <option value='all'>All Time</option>
+                            </select>
+                        )}
                         <button
                             onClick={() => {
                                 if (activeTab === 'sales')
@@ -445,6 +519,8 @@ const Reports = () => {
                                     handleExportFinanceCSV()
                                 else if (activeTab === 'courses')
                                     handleExportCoursesCSV()
+                                else if (activeTab === 'academic')
+                                    handleExportAcademicCSV()
                             }}
                             className='flex items-center justify-center py-2 px-4 rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors'
                         >
@@ -474,11 +550,17 @@ const Reports = () => {
                         >
                             Course Enrollment Reporting
                         </button>
+                        <button
+                            onClick={() => setActiveTab('academic')}
+                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'academic' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            Academic Cohort Reporting
+                        </button>
                     </div>
                 )}
 
                 {/* ========================================== */}
-                {/* FINANCIAL REPORTS VIEW (Admin / Accounts)  */}
+                {/* FINANCIAL REPORTS VIEW                     */}
                 {/* ========================================== */}
                 {activeTab === 'finance' && (
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
@@ -504,7 +586,7 @@ const Reports = () => {
                 )}
 
                 {/* ========================================== */}
-                {/* SALES REPORTS VIEW (Admin / Sales)         */}
+                {/* SALES REPORTS VIEW                         */}
                 {/* ========================================== */}
                 {activeTab === 'sales' && (
                     <>
@@ -547,7 +629,7 @@ const Reports = () => {
                 )}
 
                 {/* ========================================== */}
-                {/* COURSES REPORTS VIEW (Admin Only)          */}
+                {/* COURSES REPORTS VIEW                       */}
                 {/* ========================================== */}
                 {activeTab === 'courses' && isAdmin && (
                     <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
@@ -598,13 +680,181 @@ const Reports = () => {
                                     ))}
                                 </tbody>
                             </table>
-                            {!courseReportData.courses.length && (
-                                <div className='p-8 text-center text-gray-500'>
-                                    No student course enrollments found for this
-                                    period.
-                                </div>
-                            )}
                         </div>
+                    </div>
+                )}
+
+                {/* ========================================== */}
+                {/* ACADEMIC COHORT REPORTING VIEW             */}
+                {/* ========================================== */}
+                {activeTab === 'academic' && isAdmin && (
+                    <div className='space-y-6'>
+                        {/* Batch Selector Bar */}
+                        <div className='bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4'>
+                            <span className='text-sm font-medium text-gray-700 flex items-center gap-2'>
+                                <FiLayers className='text-blue-600' /> Select
+                                Cohort / Batch:
+                            </span>
+                            <select
+                                value={selectedBatchId}
+                                onChange={(e) =>
+                                    setSelectedBatchId(e.target.value)
+                                }
+                                className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 bg-gray-50 max-w-xs w-full'
+                            >
+                                {allBatches.map((b) => (
+                                    <option key={b._id} value={b._id}>
+                                        {b.batchName} ({b.status})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {isAcademicLoading ? (
+                            <div className='text-center py-12 text-gray-500'>
+                                Compiling academic assessment reports...
+                            </div>
+                        ) : !academicReportData ||
+                          academicReportData.data.length === 0 ? (
+                            <div className='text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100 text-gray-500'>
+                                No examination records found for this cohort.
+                            </div>
+                        ) : (
+                            <>
+                                {/* Academic Metric Overview Cards */}
+                                <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+                                    <StatCard
+                                        title='Exams Conducted'
+                                        value={
+                                            academicReportData.totalExamsConducted
+                                        }
+                                        icon={FiAward}
+                                        colorClass='bg-blue-50 text-blue-600'
+                                    />
+                                    <StatCard
+                                        title='Associated Course'
+                                        value={academicReportData.courseTitle}
+                                        icon={FiBook}
+                                        colorClass='bg-purple-50 text-purple-600'
+                                    />
+                                    <StatCard
+                                        title='Cohort Status'
+                                        value='Active Mastery'
+                                        icon={FiCheckCircle}
+                                        colorClass='bg-green-50 text-green-600'
+                                    />
+                                </div>
+
+                                {/* Examination Breakdown Tables */}
+                                <div className='space-y-6'>
+                                    {academicReportData.data.map(
+                                        (exam, idx) => (
+                                            <div
+                                                key={idx}
+                                                className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'
+                                            >
+                                                <div className='px-6 py-4 bg-gray-50 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2'>
+                                                    <div>
+                                                        <h3 className='font-bold text-gray-900 text-lg'>
+                                                            {exam.examTitle}
+                                                        </h3>
+                                                        <p className='text-xs text-gray-500'>
+                                                            Conducted on:{' '}
+                                                            {new Date(
+                                                                exam.examDate,
+                                                            ).toLocaleDateString(
+                                                                'en-IN',
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                    <div className='flex gap-3 text-xs font-semibold'>
+                                                        <span className='bg-blue-50 text-blue-700 px-3 py-1 rounded-full'>
+                                                            Avg:{' '}
+                                                            {exam.averageScore}{' '}
+                                                            / {exam.totalMarks}{' '}
+                                                            (
+                                                            {
+                                                                exam.averagePercentage
+                                                            }
+                                                            %)
+                                                        </span>
+                                                        <span className='bg-green-50 text-green-700 px-3 py-1 rounded-full'>
+                                                            Highest:{' '}
+                                                            {exam.highestScore}
+                                                        </span>
+                                                        <span className='bg-amber-50 text-amber-700 px-3 py-1 rounded-full'>
+                                                            Lowest:{' '}
+                                                            {exam.lowestScore}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className='overflow-x-auto'>
+                                                    <table className='w-full text-left text-sm'>
+                                                        <thead className='text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100 bg-white'>
+                                                            <tr>
+                                                                <th className='px-6 py-3 font-medium'>
+                                                                    Student Name
+                                                                </th>
+                                                                <th className='px-6 py-3 font-medium'>
+                                                                    Score
+                                                                </th>
+                                                                <th className='px-6 py-3 font-medium'>
+                                                                    Grade
+                                                                </th>
+                                                                <th className='px-6 py-3 font-medium'>
+                                                                    Faculty
+                                                                    Remarks
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className='divide-y divide-gray-100'>
+                                                            {exam.records.map(
+                                                                (rec) => (
+                                                                    <tr
+                                                                        key={
+                                                                            rec._id
+                                                                        }
+                                                                        className='hover:bg-gray-50'
+                                                                    >
+                                                                        <td className='px-6 py-3 font-medium text-gray-900'>
+                                                                            {rec
+                                                                                .student
+                                                                                ?.fullName ||
+                                                                                'Unknown'}
+                                                                        </td>
+                                                                        <td className='px-6 py-3 font-bold text-gray-700'>
+                                                                            {
+                                                                                rec.obtainedMarks
+                                                                            }{' '}
+                                                                            <span className='text-gray-400 font-normal text-xs'>
+                                                                                /{' '}
+                                                                                {
+                                                                                    exam.totalMarks
+                                                                                }
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className='px-6 py-3'>
+                                                                            <span className='px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-xs rounded'>
+                                                                                {rec.grade ||
+                                                                                    '-'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className='px-6 py-3 text-gray-600 italic text-xs'>
+                                                                            {rec.facultyRemarks ||
+                                                                                '-'}
+                                                                        </td>
+                                                                    </tr>
+                                                                ),
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

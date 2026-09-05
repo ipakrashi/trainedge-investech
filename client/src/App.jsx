@@ -7,7 +7,7 @@ import Leads from './pages/Leads'
 import LoginUser from './pages/LoginUser'
 import Pipeline from './pages/Pipeline'
 import Reports from './pages/Reports'
-import StudentRoster from './pages/StudentRoster' // <-- NEW Import
+import StudentRoster from './pages/StudentRoster'
 import AdminRoute from './components/routing/AdminRoute'
 import UserManagement from './pages/admin/UserManagement'
 import CourseManagement from './pages/admin/CourseManagement'
@@ -16,9 +16,11 @@ import ManageSources from './pages/admin/ManageSources'
 import ManageStatuses from './pages/admin/ManageStatuses'
 import ManageExperiences from './pages/admin/ManageExperiences'
 import ReassignLeads from './pages/admin/ReassignLeads'
-import PendingStudents from './pages/admin/PendingStudents' // <-- NEW Import
+import PendingStudents from './pages/admin/PendingStudents'
 import PaymentManagement from './pages/admin/PaymentManagement'
 import ManagePaymentModes from './pages/admin/ManagePaymentModes'
+import BatchesOverview from './pages/lms/BatchesOverview'
+import BatchDetail from './pages/lms/BatchDetail'
 
 const App = () => {
     return (
@@ -35,11 +37,15 @@ const App = () => {
                         <Route path='/leads' element={<Leads />} />
                         <Route path='/pipeline' element={<Pipeline />} />
                         <Route path='/reports' element={<Reports />} />
+                        <Route path='/students' element={<StudentRoster />} />
+
+                        {/* ADMIN & FACULTY ROUTES */}
+                        <Route path='/batches' element={<BatchesOverview />} />
                         <Route
-                            path='/students'
-                            element={<StudentRoster />}
-                        />{' '}
-                        {/* <-- NEW Route */}
+                            path='/batches/:batchId'
+                            element={<BatchDetail />}
+                        />
+
                         {/* ADMIN ROUTES */}
                         <Route element={<AdminRoute />}>
                             <Route
@@ -82,7 +88,6 @@ const App = () => {
                                 path='/admin/payment-modes'
                                 element={<ManagePaymentModes />}
                             />
-                            {/* <-- NEW Route */}
                         </Route>
                     </Route>
                 </Route>
