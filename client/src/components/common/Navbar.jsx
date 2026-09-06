@@ -70,7 +70,7 @@ const Navbar = () => {
                                 <span
                                     className={
                                         isAdmin
-                                            ? 'text-red-700 bg-red-50 border border-red-200 font-semibold px-2 py-1 rounded-2xl'
+                                            ? 'text-purple-700 bg-purple-50 border border-purple-200 font-semibold px-2 py-1 rounded-2xl'
                                             : isSales
                                               ? 'text-blue-700 bg-blue-50 border border-blue-200 font-semibold px-2 py-1 rounded-2xl'
                                               : isFaculty
