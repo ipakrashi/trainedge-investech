@@ -3,7 +3,7 @@ import leadModel from '../models/leadModel.js'
 import studentModel from '../models/studentModel.js'
 import userModel from '../models/userModel.js'
 import paymentModel from '../models/paymentModel.js'
-import batchModel from '../models/batchModel.js' // <-- NEW IMPORT
+import batchModel from '../models/batchModel.js'
 import asyncHandler from 'express-async-handler'
 
 // @desc    Get role-scoped analytics dashboard data
@@ -67,12 +67,22 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
             .filter((p) => new Date(p.paymentDate) >= startOfDay)
             .reduce((sum, p) => sum + p.amount, 0)
 
+        // Calculate Total Outstanding Dues for valid students
+        const students = await studentModel.find({
+            status: { $ne: 'PENDING_ASSIGNMENT' },
+        })
+        const totalOutstanding = students.reduce((sum, s) => {
+            const due = (s.totalFee || 0) - (s.paidAmount || 0)
+            return sum + (due > 0 ? due : 0)
+        }, 0)
+
         return res.status(200).json({
             success: true,
             role: 'accounts',
             data: {
                 totalCollected,
                 todayCollected,
+                totalOutstanding,
                 transactionCount: payments.length,
             },
         })
@@ -236,14 +246,25 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
             .filter((p) => new Date(p.paymentDate) >= startOfDay)
             .reduce((sum, p) => sum + p.amount, 0)
 
-        // -- Academic Aggregation --
+        // -- Academic & Outstanding Aggregation --
         const students = await studentModel.find()
         const totalStudents = students.length
         const activeStudents = students.filter(
             (s) => s.status === 'ACTIVE',
         ).length
+
         let expectedRevenue = 0
-        students.forEach((s) => (expectedRevenue += s.totalFee || 0))
+        let totalOutstanding = 0
+
+        students.forEach((s) => {
+            expectedRevenue += s.totalFee || 0
+
+            // Calculate outstanding dues for assigned students
+            if (s.status !== 'PENDING_ASSIGNMENT') {
+                const due = (s.totalFee || 0) - (s.paidAmount || 0)
+                if (due > 0) totalOutstanding += due
+            }
+        })
 
         return res.status(200).json({
             success: true,
@@ -262,6 +283,7 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
                 financeStats: {
                     totalCollected,
                     todayCollected,
+                    totalOutstanding,
                     transactionCount: payments.length,
                 },
                 academicStats: {

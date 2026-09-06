@@ -3,7 +3,12 @@ import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import { FiX, FiDollarSign } from 'react-icons/fi'
 
-const RecordPaymentModal = ({ isOpen, onClose, onPaymentSuccess }) => {
+const RecordPaymentModal = ({
+    isOpen,
+    onClose,
+    onPaymentSuccess,
+    prefillStudentId,
+}) => {
     const [students, setStudents] = useState([])
     const [paymentModes, setPaymentModes] = useState([])
     const [formData, setFormData] = useState({
@@ -20,13 +25,23 @@ const RecordPaymentModal = ({ isOpen, onClose, onPaymentSuccess }) => {
     useEffect(() => {
         if (isOpen) {
             fetchDropdownData()
+            // Reset form completely, but apply prefill if passed
+            setFormData({
+                studentId: prefillStudentId || '',
+                amount: '',
+                paymentDate: new Date().toISOString().split('T')[0],
+                transactionId: '',
+                paymentMode: '',
+                remarks: '',
+            })
+            setError('')
         }
-    }, [isOpen])
+    }, [isOpen, prefillStudentId])
 
     const fetchDropdownData = async () => {
         try {
             const [studentsRes, modesRes] = await Promise.all([
-                api.get('/students'),
+                api.get('/students?limit=5000'), // Ensure we fetch all potential candidates
                 api.get('/payment-modes'),
             ])
 
@@ -35,9 +50,9 @@ const RecordPaymentModal = ({ isOpen, onClose, onPaymentSuccess }) => {
                 studentsRes.data ||
                 []
             ).filter((s) => s.status !== 'PENDING_ASSIGNMENT')
+
             setStudents(validStudents)
 
-            // Flexible fallback parsing for payment modes array
             const modesData = modesRes.data?.data || modesRes.data || []
             setPaymentModes(Array.isArray(modesData) ? modesData : [])
         } catch (err) {
@@ -58,7 +73,6 @@ const RecordPaymentModal = ({ isOpen, onClose, onPaymentSuccess }) => {
         try {
             await api.post('/payments', formData)
             onPaymentSuccess()
-            onClose()
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to record payment.')
         } finally {
@@ -208,7 +222,7 @@ const RecordPaymentModal = ({ isOpen, onClose, onPaymentSuccess }) => {
                             disabled={isLoading}
                             className='px-5 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm disabled:opacity-50'
                         >
-                            {isLoading ? 'Recording...' : 'Save Payment Mode'}
+                            {isLoading ? 'Recording...' : 'Save Payment Entry'}
                         </button>
                     </div>
                 </form>

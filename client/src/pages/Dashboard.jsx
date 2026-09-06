@@ -9,6 +9,7 @@ import {
     FiCreditCard,
     FiTarget,
     FiLayers,
+    FiAlertCircle,
 } from 'react-icons/fi'
 import api from '../api/axios'
 import StatCard from '../components/common/StatCard'
@@ -53,6 +54,7 @@ const Dashboard = () => {
         const {
             totalCollected = 0,
             todayCollected = 0,
+            totalOutstanding = 0,
             transactionCount = 0,
         } = dashboardData || {}
         return (
@@ -68,7 +70,7 @@ const Dashboard = () => {
                         </p>
                     </div>
 
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
                         <StatCard
                             title='Total Lifetime Collections'
                             value={`₹${totalCollected.toLocaleString('en-IN')}`}
@@ -80,6 +82,12 @@ const Dashboard = () => {
                             value={`₹${todayCollected.toLocaleString('en-IN')}`}
                             icon={FiTrendingUp}
                             colorClass='bg-blue-50 text-blue-600'
+                        />
+                        <StatCard
+                            title='Total Outstanding Dues'
+                            value={`₹${totalOutstanding.toLocaleString('en-IN')}`}
+                            icon={FiAlertCircle}
+                            colorClass='bg-red-50 text-red-600'
                         />
                         <StatCard
                             title='Total Ledger Transactions'
@@ -134,7 +142,6 @@ const Dashboard = () => {
                         </p>
                     </div>
 
-                    {/* Removed Financial Cards, focused purely on Academic metrics */}
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8'>
                         <StatCard
                             title='Total Students'
@@ -372,7 +379,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Section 2: Revenue & Academic Delivery */}
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
+                <div className='grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8'>
                     <div>
                         <h2 className='text-lg font-bold text-gray-700 mb-4 pb-2 border-b border-gray-200'>
                             Revenue & Collections
@@ -389,6 +396,12 @@ const Dashboard = () => {
                                 value={`₹${(financeStats?.todayCollected || 0).toLocaleString('en-IN')}`}
                                 icon={FiTrendingUp}
                                 colorClass='bg-blue-50 text-blue-600'
+                            />
+                            <StatCard
+                                title='Total Outstanding Dues'
+                                value={`₹${(financeStats?.totalOutstanding || 0).toLocaleString('en-IN')}`}
+                                icon={FiAlertCircle}
+                                colorClass='bg-red-50 text-red-600'
                             />
                             <StatCard
                                 title='Expected Pipeline Revenue'

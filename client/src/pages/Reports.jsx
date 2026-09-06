@@ -1,5 +1,5 @@
 // src/pages/Reports.jsx
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
     FiDollarSign,
     FiTrendingUp,
@@ -10,12 +10,17 @@ import {
     FiBook,
     FiLayers,
     FiCheckCircle,
+    FiSearch,
+    FiFilter,
+    FiPlus,
+    FiAlertCircle,
 } from 'react-icons/fi'
 import api from '../api/axios'
 import StatCard from '../components/common/StatCard'
 import ConversionFunnel from '../components/reports/ConversionFunnel'
 import SourceBreakdown from '../components/reports/SourceBreakdown'
 import RepPerformanceTable from '../components/reports/RepPerformanceTable'
+import RecordPaymentModal from '../components/admin/RecordPaymentModal'
 
 const Reports = () => {
     // 1. Role Initialization
@@ -46,49 +51,58 @@ const Reports = () => {
     const [academicReportData, setAcademicReportData] = useState(null)
     const [isAcademicLoading, setIsAcademicLoading] = useState(false)
 
+    // A/R Ledger State
+    const [arSearchQuery, setArSearchQuery] = useState('')
+    const [arStatusFilter, setArStatusFilter] = useState('DUE') // 'ALL', 'DUE', 'PAID'
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+    const [selectedStudentForPayment, setSelectedStudentForPayment] =
+        useState(null)
+
     const [isLoading, setIsLoading] = useState(true)
 
     // 2. Safely parallelize independent payload requests
-    useEffect(() => {
-        const fetchAllData = async () => {
-            setIsLoading(true)
-            try {
-                const [leadsRes, paymentsRes, studentsRes, batchesRes] =
-                    await Promise.allSettled([
-                        isAdmin || isSales
-                            ? api.get('/leads?limit=5000')
-                            : Promise.resolve({ data: { data: [] } }),
-                        isAdmin || isAccounts
-                            ? api.get('/payments')
-                            : Promise.resolve({ data: { data: [] } }),
-                        isAdmin
-                            ? api.get('/students?limit=5000')
-                            : Promise.resolve({ data: { data: [] } }),
-                        isAdmin
-                            ? api.get('/batches')
-                            : Promise.resolve({ data: { data: [] } }),
-                    ])
+    const fetchAllData = useCallback(async () => {
+        setIsLoading(true)
+        try {
+            const [leadsRes, paymentsRes, studentsRes, batchesRes] =
+                await Promise.allSettled([
+                    isAdmin || isSales
+                        ? api.get('/leads?limit=5000')
+                        : Promise.resolve({ data: { data: [] } }),
+                    isAdmin || isAccounts
+                        ? api.get('/payments')
+                        : Promise.resolve({ data: { data: [] } }),
+                    isAdmin || isAccounts
+                        ? api.get('/students?limit=5000')
+                        : Promise.resolve({ data: { data: [] } }),
+                    isAdmin || isAccounts
+                        ? api.get('/batches')
+                        : Promise.resolve({ data: { data: [] } }),
+                ])
 
-                if (isAdmin || isSales)
-                    setAllLeads(leadsRes.value?.data?.data || [])
-                if (isAdmin || isAccounts)
-                    setAllPayments(paymentsRes.value?.data?.data || [])
-                if (isAdmin) {
-                    setAllStudents(studentsRes.value?.data?.data || [])
-                    const batchesList = batchesRes.value?.data?.data || []
-                    setAllBatches(batchesList)
-                    if (batchesList.length > 0) {
-                        setSelectedBatchId(batchesList[0]._id) // Default to first batch
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch reporting data:', error)
-            } finally {
-                setIsLoading(false)
+            if (isAdmin || isSales)
+                setAllLeads(leadsRes.value?.data?.data || [])
+            if (isAdmin || isAccounts) {
+                setAllPayments(paymentsRes.value?.data?.data || [])
+                setAllStudents(studentsRes.value?.data?.data || [])
             }
+            if (isAdmin || isAccounts) {
+                const batchesList = batchesRes.value?.data?.data || []
+                setAllBatches(batchesList)
+                if (batchesList.length > 0 && !selectedBatchId) {
+                    setSelectedBatchId(batchesList[0]._id) // Default to first batch
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch reporting data:', error)
+        } finally {
+            setIsLoading(false)
         }
+    }, [isAdmin, isSales, isAccounts, selectedBatchId])
+
+    useEffect(() => {
         fetchAllData()
-    }, [isAdmin, isSales, isAccounts])
+    }, [fetchAllData])
 
     // Fetch Academic Report when selected batch changes
     useEffect(() => {
@@ -284,7 +298,7 @@ const Reports = () => {
         }
     }, [allLeads, timeRange])
 
-    // 4. Process Finance Data
+    // 4. Process Finance Data (Now with 5 Global Metrics)
     const { filteredPayments, financeReportData } = useMemo(() => {
         const now = new Date()
         const filtered = allPayments.filter((payment) => {
@@ -299,26 +313,40 @@ const Reports = () => {
         })
 
         const totalRevenue = filtered.reduce((sum, p) => sum + p.amount, 0)
-        const avgPayment = filtered.length ? totalRevenue / filtered.length : 0
+
+        const startOfDay = new Date()
+        startOfDay.setHours(0, 0, 0, 0)
+        const todayCollected = allPayments
+            .filter((p) => new Date(p.paymentDate) >= startOfDay)
+            .reduce((sum, p) => sum + p.amount, 0)
+
+        // Calculate Outstanding Dues & Expected Revenue globally from the student roster
+        let expectedRevenue = 0
+        let totalOutstanding = 0
+        allStudents.forEach((s) => {
+            if (s.status !== 'PENDING_ASSIGNMENT') {
+                expectedRevenue += s.totalFee || 0
+                const due = (s.totalFee || 0) - (s.paidAmount || 0)
+                if (due > 0) totalOutstanding += due
+            }
+        })
 
         return {
             filteredPayments: filtered,
             financeReportData: {
                 totalRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`,
+                todayCollected: `₹${todayCollected.toLocaleString('en-IN')}`,
+                totalOutstanding: `₹${totalOutstanding.toLocaleString('en-IN')}`,
+                expectedRevenue: `₹${expectedRevenue.toLocaleString('en-IN')}`,
                 transactionCount: filtered.length,
-                avgPayment: `₹${Math.round(avgPayment).toLocaleString('en-IN')}`,
             },
         }
-    }, [allPayments, timeRange])
+    }, [allPayments, allStudents, timeRange])
 
     // 5. Process Course Enrollment Data
-    const { filteredStudents, courseReportData } = useMemo(() => {
+    const { courseReportData } = useMemo(() => {
         if (!isAdmin)
-            return {
-                filteredStudents: [],
-                courseReportData: { totalEnrollments: 0, courses: [] },
-            }
-
+            return { courseReportData: { totalEnrollments: 0, courses: [] } }
         const now = new Date()
         const filtered = allStudents.filter((student) => {
             if (timeRange === 'all') return true
@@ -337,9 +365,8 @@ const Reports = () => {
         filtered.forEach((s) => {
             ;(s.enrolledCourses || []).forEach((c) => {
                 const cTitle = c.courseTitle || 'Unknown Course'
-                if (!courseMap[cTitle]) {
+                if (!courseMap[cTitle])
                     courseMap[cTitle] = { title: cTitle, count: 0, revenue: 0 }
-                }
                 courseMap[cTitle].count += 1
                 courseMap[cTitle].revenue += c.fee || 0
                 totalEnrollments += 1
@@ -349,18 +376,41 @@ const Reports = () => {
         const courses = Object.values(courseMap).sort(
             (a, b) => b.count - a.count,
         )
-
-        return {
-            filteredStudents: filtered,
-            courseReportData: { totalEnrollments, courses },
-        }
+        return { courseReportData: { totalEnrollments, courses } }
     }, [allStudents, timeRange, isAdmin])
 
-    // 6. CSV Export Logics
+    // --- Process Active A/R Ledger Data ---
+    const filteredARStudents = useMemo(() => {
+        return allStudents
+            .filter((student) => {
+                if (student.status === 'PENDING_ASSIGNMENT') return false
+
+                const searchString = arSearchQuery.toLowerCase()
+                const matchesSearch =
+                    student.fullName?.toLowerCase().includes(searchString) ||
+                    student.email?.toLowerCase().includes(searchString) ||
+                    student.phone?.includes(searchString)
+
+                const amountDue =
+                    (student.totalFee || 0) - (student.paidAmount || 0)
+
+                let matchesStatus = true
+                if (arStatusFilter === 'DUE') matchesStatus = amountDue > 0
+                if (arStatusFilter === 'PAID')
+                    matchesStatus = amountDue <= 0 && student.totalFee > 0
+
+                return matchesSearch && matchesStatus
+            })
+            .sort((a, b) => {
+                const dueA = (a.totalFee || 0) - (a.paidAmount || 0)
+                const dueB = (b.totalFee || 0) - (b.paidAmount || 0)
+                return dueB - dueA
+            })
+    }, [allStudents, arSearchQuery, arStatusFilter])
+
+    // --- CSV Export Logics ---
     const handleExportSalesCSV = () => {
         if (!filteredLeads.length) return alert('No data to export.')
-
-        // Added Lead Owner to headers
         const headers = [
             'Full Name',
             'Email',
@@ -373,14 +423,11 @@ const Reports = () => {
             'Last Interaction Date',
             'Next Follow-Up Date',
         ]
-
         const csvRows = filteredLeads.map((lead) => {
-            // Resolve Lead Owner Name
             const ownerName = lead.assignedTo
                 ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() ||
                   lead.assignedTo.email
                 : 'Unassigned'
-
             return [
                 lead.fullName || '',
                 lead.email || '',
@@ -488,7 +535,7 @@ const Reports = () => {
         URL.revokeObjectURL(link.href)
     }
 
-    if (isLoading) {
+    if (isLoading && allStudents.length === 0) {
         return (
             <div className='flex items-center justify-center h-[calc(100vh-200px)]'>
                 <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600' />
@@ -553,59 +600,277 @@ const Reports = () => {
                 </div>
 
                 {/* Admin Tab Navigation */}
-                {isAdmin && (
+                {(isAdmin || isAccounts) && (
                     <div className='flex gap-4 mb-6 overflow-x-auto pb-2'>
                         <button
                             onClick={() => setActiveTab('finance')}
                             className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'finance' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                         >
-                            Financial Reporting
+                            Financial Reporting & Collections
                         </button>
-                        <button
-                            onClick={() => setActiveTab('sales')}
-                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'sales' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
-                        >
-                            Sales Pipeline Reporting
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('courses')}
-                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'courses' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
-                        >
-                            Course Enrollment Reporting
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('academic')}
-                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'academic' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
-                        >
-                            Academic Cohort Reporting
-                        </button>
+                        {isAdmin && (
+                            <>
+                                <button
+                                    onClick={() => setActiveTab('sales')}
+                                    className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'sales' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                    Sales Pipeline Reporting
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('courses')}
+                                    className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'courses' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                    Course Enrollment Reporting
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('academic')}
+                                    className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'academic' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                    Academic Cohort Reporting
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
 
                 {/* ========================================== */}
-                {/* FINANCIAL REPORTS VIEW                     */}
+                {/* FINANCIAL REPORTS & A/R VIEW               */}
                 {/* ========================================== */}
                 {activeTab === 'finance' && (
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
-                        <StatCard
-                            title='Revenue Collected'
-                            value={financeReportData.totalRevenue}
-                            icon={FiDollarSign}
-                            colorClass='bg-green-50 text-green-600'
-                        />
-                        <StatCard
-                            title='Transactions'
-                            value={financeReportData.transactionCount}
-                            icon={FiCreditCard}
-                            colorClass='bg-blue-50 text-blue-600'
-                        />
-                        <StatCard
-                            title='Average Payment Size'
-                            value={financeReportData.avgPayment}
-                            icon={FiAward}
-                            colorClass='bg-purple-50 text-purple-600'
-                        />
-                    </div>
+                    <>
+                        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8'>
+                            <StatCard
+                                title='Expected Pipeline Revenue'
+                                value={financeReportData.expectedRevenue}
+                                icon={FiTarget}
+                                colorClass='bg-purple-50 text-purple-600'
+                            />
+                            <StatCard
+                                title={
+                                    timeRange === 'all'
+                                        ? 'Total Lifetime Collections'
+                                        : 'Period Collections'
+                                }
+                                value={financeReportData.totalRevenue}
+                                icon={FiDollarSign}
+                                colorClass='bg-green-50 text-green-600'
+                            />
+                            <StatCard
+                                title='Total Outstanding Dues'
+                                value={financeReportData.totalOutstanding}
+                                icon={FiAlertCircle}
+                                colorClass='bg-red-50 text-red-600'
+                            />
+                            <StatCard
+                                title="Today's Collections"
+                                value={financeReportData.todayCollected}
+                                icon={FiTrendingUp}
+                                colorClass='bg-blue-50 text-blue-600'
+                            />
+                            <StatCard
+                                title='Ledger Transactions'
+                                value={financeReportData.transactionCount}
+                                icon={FiCreditCard}
+                                colorClass='bg-indigo-50 text-indigo-600'
+                            />
+                        </div>
+
+                        {/* Accounts Receivable Ledger Grid */}
+                        <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8'>
+                            <div className='p-6 border-b border-gray-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-gray-50'>
+                                <div>
+                                    <h3 className='font-bold text-gray-900 flex items-center gap-2'>
+                                        <FiLayers className='text-blue-600' />{' '}
+                                        Active Accounts Receivable Ledger
+                                    </h3>
+                                    <p className='text-sm text-gray-500'>
+                                        Identify due balances and log new fee
+                                        collections.
+                                    </p>
+                                </div>
+                                <div className='flex gap-3 w-full lg:w-auto'>
+                                    <div className='relative w-full sm:w-auto'>
+                                        <FiSearch className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
+                                        <input
+                                            type='text'
+                                            placeholder='Search student...'
+                                            value={arSearchQuery}
+                                            onChange={(e) =>
+                                                setArSearchQuery(e.target.value)
+                                            }
+                                            className='w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500'
+                                        />
+                                    </div>
+                                    <div className='relative w-full sm:w-auto'>
+                                        <FiFilter className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
+                                        <select
+                                            value={arStatusFilter}
+                                            onChange={(e) =>
+                                                setArStatusFilter(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className='w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 appearance-none'
+                                        >
+                                            <option value='ALL'>
+                                                All Accounts
+                                            </option>
+                                            <option value='DUE'>
+                                                Balance Due
+                                            </option>
+                                            <option value='PAID'>
+                                                Fully Paid
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setSelectedStudentForPayment(null)
+                                            setIsPaymentModalOpen(true)
+                                        }}
+                                        className='flex items-center justify-center py-2 px-4 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 whitespace-nowrap'
+                                    >
+                                        <FiPlus className='mr-1' /> Collect Fee
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className='overflow-x-auto max-h-[600px]'>
+                                <table className='w-full text-left whitespace-nowrap'>
+                                    <thead className='sticky top-0 bg-white shadow-sm z-10'>
+                                        <tr className='text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200'>
+                                            <th className='px-6 py-4 font-medium'>
+                                                Student Info
+                                            </th>
+                                            <th className='px-6 py-4 font-medium'>
+                                                Enrolled Courses
+                                            </th>
+                                            <th className='px-6 py-4 font-medium text-right'>
+                                                Total Fee
+                                            </th>
+                                            <th className='px-6 py-4 font-medium text-right'>
+                                                Collected
+                                            </th>
+                                            <th className='px-6 py-4 font-medium text-right'>
+                                                Amount Due
+                                            </th>
+                                            <th className='px-6 py-4 font-medium text-center'>
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className='divide-y divide-gray-100'>
+                                        {filteredARStudents.length > 0 ? (
+                                            filteredARStudents.map(
+                                                (student) => {
+                                                    const total =
+                                                        student.totalFee || 0
+                                                    const paid =
+                                                        student.paidAmount || 0
+                                                    const due = total - paid
+
+                                                    return (
+                                                        <tr
+                                                            key={student._id}
+                                                            className='hover:bg-gray-50 text-sm'
+                                                        >
+                                                            <td className='px-6 py-4'>
+                                                                <div className='font-bold text-gray-900'>
+                                                                    {
+                                                                        student.fullName
+                                                                    }
+                                                                </div>
+                                                                <div className='text-gray-500 text-xs'>
+                                                                    {
+                                                                        student.email
+                                                                    }
+                                                                </div>
+                                                                <div className='text-gray-400 text-xs'>
+                                                                    {
+                                                                        student.phone
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                            <td className='px-6 py-4 text-gray-600 text-xs'>
+                                                                {student.enrolledCourses
+                                                                    ?.map(
+                                                                        (c) =>
+                                                                            c.courseTitle,
+                                                                    )
+                                                                    .join(
+                                                                        ', ',
+                                                                    ) || 'N/A'}
+                                                            </td>
+                                                            <td className='px-6 py-4 text-right font-medium text-gray-900'>
+                                                                ₹
+                                                                {total.toLocaleString(
+                                                                    'en-IN',
+                                                                )}
+                                                            </td>
+                                                            <td className='px-6 py-4 text-right font-medium text-green-600'>
+                                                                ₹
+                                                                {paid.toLocaleString(
+                                                                    'en-IN',
+                                                                )}
+                                                            </td>
+                                                            <td className='px-6 py-4 text-right font-bold'>
+                                                                <span
+                                                                    className={
+                                                                        due > 0
+                                                                            ? 'text-red-600 bg-red-50 px-2 py-1 rounded'
+                                                                            : 'text-gray-400'
+                                                                    }
+                                                                >
+                                                                    ₹
+                                                                    {due.toLocaleString(
+                                                                        'en-IN',
+                                                                    )}
+                                                                </span>
+                                                            </td>
+                                                            <td className='px-6 py-4 text-center'>
+                                                                <button
+                                                                    disabled={
+                                                                        due <= 0
+                                                                    }
+                                                                    onClick={() => {
+                                                                        setSelectedStudentForPayment(
+                                                                            student._id,
+                                                                        )
+                                                                        setIsPaymentModalOpen(
+                                                                            true,
+                                                                        )
+                                                                    }}
+                                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                                                                        due > 0
+                                                                            ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    }`}
+                                                                >
+                                                                    {due > 0
+                                                                        ? 'Log Payment'
+                                                                        : 'Cleared'}
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                },
+                                            )
+                                        ) : (
+                                            <tr>
+                                                <td
+                                                    colSpan='6'
+                                                    className='px-6 py-12 text-center text-gray-500'
+                                                >
+                                                    No outstanding accounts
+                                                    match your filters.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
                 )}
 
                 {/* ========================================== */}
@@ -881,6 +1146,21 @@ const Reports = () => {
                     </div>
                 )}
             </div>
+
+            {/* Record Payment Modal Integration */}
+            <RecordPaymentModal
+                isOpen={isPaymentModalOpen}
+                onClose={() => {
+                    setIsPaymentModalOpen(false)
+                    setSelectedStudentForPayment(null)
+                }}
+                onPaymentSuccess={() => {
+                    setIsPaymentModalOpen(false)
+                    setSelectedStudentForPayment(null)
+                    fetchAllData() // Automatically refresh ledger when payment is logged
+                }}
+                prefillStudentId={selectedStudentForPayment}
+            />
         </div>
     )
 }
