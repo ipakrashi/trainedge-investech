@@ -1,6 +1,8 @@
+// src/pages/admin/UserManagement.jsx
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import { FiEdit2, FiTrash2, FiPlus, FiShield } from 'react-icons/fi'
+import RoleBadge from '../../components/common/RoleBadge'
 
 const UserManagement = () => {
     const [users, setUsers] = useState([])
@@ -93,7 +95,6 @@ const UserManagement = () => {
                 if (!payload.password) delete payload.password
                 await api.put(`/users/${editingUser._id}`, payload)
             } else {
-                // FIXED: Removed /addNew to match backend REST architecture
                 await api.post('/users', formData)
             }
             setIsModalOpen(false)
@@ -164,64 +165,42 @@ const UserManagement = () => {
                                     </tr>
                                 </thead>
                                 <tbody className='divide-y divide-gray-100 text-sm'>
-                                    {users.map((user) => {
-                                        const roleName =
-                                            user.role?.name ||
-                                            user.role ||
-                                            'N/A'
-                                        const isAdmin =
-                                            roleName.toLowerCase() === 'admin'
-                                        return (
-                                            <tr
-                                                key={user._id}
-                                                className='hover:bg-gray-50 transition-colors'
-                                            >
-                                                <td className='px-6 py-4 font-medium text-gray-900'>
-                                                    {user.firstName}{' '}
-                                                    {user.lastName}
-                                                </td>
-                                                <td className='px-6 py-4 text-gray-500'>
-                                                    {user.email}
-                                                </td>
-                                                <td className='px-6 py-4'>
-                                                    <span
-                                                        className={`px-2.5 py-1 rounded-full text-xs font-medium border flex items-center w-fit gap-1
-                                                        ${isAdmin ? 'bg-purple-50 text-purple-700 border-purple-200' : `${roleName}` === 'sales' ? 'bg-blue-100 text-blue-700 border-blue-200' : `${roleName}` === 'faculty' ? 'bg-amber-100 text-amber-700 border-amber-200' : `${roleName}` === 'accounts' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'}
-                                                    `}
-                                                    >
-                                                        {isAdmin && (
-                                                            <FiShield className='text-[10px]' />
-                                                        )}
-                                                        {roleName.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td className='px-6 py-4 text-right space-x-3'>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleOpenModal(
-                                                                user,
-                                                            )
-                                                        }
-                                                        className='text-gray-400 hover:text-blue-600 transition-colors'
-                                                        title='Edit User'
-                                                    >
-                                                        <FiEdit2 className='text-lg inline' />
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleDelete(
-                                                                user._id,
-                                                            )
-                                                        }
-                                                        className='text-gray-400 hover:text-red-600 transition-colors'
-                                                        title='Delete User'
-                                                    >
-                                                        <FiTrash2 className='text-lg inline' />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
+                                    {users.map((user) => (
+                                        <tr
+                                            key={user._id}
+                                            className='hover:bg-gray-50 transition-colors'
+                                        >
+                                            <td className='px-6 py-4 font-medium text-gray-900'>
+                                                {user.firstName} {user.lastName}
+                                            </td>
+                                            <td className='px-6 py-4 text-gray-500'>
+                                                {user.email}
+                                            </td>
+                                            <td className='px-6 py-4'>
+                                                <RoleBadge role={user.role} />
+                                            </td>
+                                            <td className='px-6 py-4 text-right space-x-3'>
+                                                <button
+                                                    onClick={() =>
+                                                        handleOpenModal(user)
+                                                    }
+                                                    className='text-gray-400 hover:text-blue-600 transition-colors'
+                                                    title='Edit User'
+                                                >
+                                                    <FiEdit2 className='text-lg inline' />
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        handleDelete(user._id)
+                                                    }
+                                                    className='text-gray-400 hover:text-red-600 transition-colors'
+                                                    title='Delete User'
+                                                >
+                                                    <FiTrash2 className='text-lg inline' />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>

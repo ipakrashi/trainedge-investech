@@ -1,5 +1,6 @@
 // src/components/leads/LeadActivityPanel.jsx
 import { useState, useEffect } from 'react'
+import RoleBadge from '../common/RoleBadge'
 import api from '../../api/axios'
 import {
     FiX,
@@ -253,10 +254,21 @@ const LeadActivityPanel = ({
                                         <p className='text-sm text-gray-600 mb-2'>
                                             {activity.summary}
                                         </p>
-                                        <div className='text-[10px] text-gray-400 border-t border-gray-50 pt-2'>
-                                            Logged by:{' '}
-                                            {activity.performedBy?.firstName}{' '}
-                                            {activity.performedBy?.lastName}
+                                        {/* ... inside the activities.map loop in LeadActivityPanel.jsx ... */}
+                                        <div className='text-[10px] text-gray-400 border-t border-gray-50 pt-2 flex items-center gap-2'>
+                                            <span>
+                                                Logged by:{' '}
+                                                {
+                                                    activity.performedBy
+                                                        ?.firstName
+                                                }{' '}
+                                                {activity.performedBy?.lastName}
+                                            </span>
+                                            <RoleBadge
+                                                role={
+                                                    activity.performedBy?.role
+                                                }
+                                            />
                                         </div>
                                     </div>
                                 </div>

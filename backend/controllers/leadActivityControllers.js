@@ -1,3 +1,4 @@
+// server/controllers/leadActivityController.js
 import leadActivityModel from '../models/leadActivityModel.js'
 import leadModel from '../models/leadModel.js'
 
@@ -100,7 +101,15 @@ export const getActivitiesByLead = async (req, res) => {
 
         const activities = await leadActivityModel
             .find({ lead: req.params.leadId })
-            .populate('performedBy', 'firstName lastName email role')
+            // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+            .populate({
+                path: 'performedBy',
+                select: 'firstName lastName email role',
+                populate: {
+                    path: 'role',
+                    select: 'name',
+                },
+            })
             .sort({ createdAt: -1 })
 
         res.status(200).json({
@@ -154,7 +163,15 @@ export const updateActivity = async (req, res) => {
                 new: true,
                 runValidators: true,
             })
-            .populate('performedBy', 'firstName lastName')
+            // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+            .populate({
+                path: 'performedBy',
+                select: 'firstName lastName email role',
+                populate: {
+                    path: 'role',
+                    select: 'name',
+                },
+            })
 
         res.status(200).json({
             success: true,

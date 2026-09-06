@@ -1,14 +1,9 @@
 // src/pages/admin/PaymentManagement.jsx
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
-import {
-    FiPlus,
-    FiDollarSign,
-    FiCalendar,
-    FiUser,
-    FiCreditCard,
-} from 'react-icons/fi'
+import { FiPlus, FiCalendar, FiUser, FiCreditCard } from 'react-icons/fi'
 import RecordPaymentModal from '../../components/admin/RecordPaymentModal'
+import RoleBadge from '../../components/common/RoleBadge'
 
 const PaymentManagement = () => {
     const [payments, setPayments] = useState([])
@@ -129,10 +124,15 @@ const PaymentManagement = () => {
                                             </span>
                                         </td>
                                         <td className='px-6 py-4 text-gray-600'>
-                                            <div className='flex items-center gap-1'>
+                                            <div className='flex items-center gap-2'>
                                                 <FiUser className='text-gray-400' />
-                                                {p.collectedBy?.firstName}{' '}
-                                                {p.collectedBy?.lastName}
+                                                <span className='font-medium'>
+                                                    {p.collectedBy?.firstName}{' '}
+                                                    {p.collectedBy?.lastName}
+                                                </span>
+                                                <RoleBadge
+                                                    role={p.collectedBy?.role}
+                                                />
                                             </div>
                                         </td>
                                         <td className='px-6 py-4 text-gray-500 text-xs italic max-w-xs truncate'>

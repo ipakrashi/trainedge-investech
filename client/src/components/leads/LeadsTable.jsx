@@ -1,5 +1,7 @@
 // src/components/leads/LeadsTable.jsx
 import { FiEdit2, FiTrash2, FiActivity, FiCalendar } from 'react-icons/fi'
+import RoleBadge from '../common/RoleBadge'
+import StatusBadge from '../common/StatusBadge'
 
 const LeadsTable = ({
     leads,
@@ -94,27 +96,21 @@ const LeadsTable = ({
                                         </div>
                                     </td>
                                     <td className='px-6 py-4'>
-                                        <span
-                                            className={`px-2.5 py-1 rounded-full text-xs font-medium border
-                                            ${lead.status === 'NEW' ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}
-                                            ${lead.status === 'CONTACTED' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : ''}
-                                            ${lead.status === 'QUALIFIED' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''}
-                                            ${lead.status === 'DEMO_SCHEDULED' ? 'bg-orange-50 text-orange-700 border-orange-200' : ''}
-                                            ${lead.status === 'DEMO_ATTENDED' ? 'bg-teal-50 text-teal-700 border-teal-200' : ''}
-                                            ${lead.status === 'ENROLLED' ? 'bg-green-50 text-green-700 border-green-200' : ''}
-                                            ${lead.status === 'LOST' ? 'bg-red-50 text-red-700 border-red-200' : ''}
-                                            ${lead.status === 'JUNK' ? 'bg-gray-100 text-gray-700 border-gray-300' : ''}
-                                        `}
-                                        >
-                                            {lead.status.replace('_', ' ')}
-                                        </span>
+                                        <StatusBadge status={lead.status} />
                                     </td>
                                     <td className='px-6 py-4 text-gray-600 text-xs font-medium'>
                                         {lead.source.replace('_', ' ')}
                                     </td>
                                     <td className='px-6 py-4 text-gray-700 font-medium'>
                                         {lead.assignedTo ? (
-                                            lead.assignedTo.email
+                                            <div className='flex flex-col gap-1 items-start'>
+                                                <span>
+                                                    {lead.assignedTo.email}
+                                                </span>
+                                                <RoleBadge
+                                                    role={lead.assignedTo.role}
+                                                />
+                                            </div>
                                         ) : (
                                             <span className='text-gray-400 italic'>
                                                 Unassigned

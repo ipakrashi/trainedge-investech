@@ -1,3 +1,6 @@
+// src/components/reports/RepPerformanceTable.jsx
+import RoleBadge from '../common/RoleBadge'
+
 const RepPerformanceTable = ({ teamData }) => {
     return (
         <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
@@ -34,8 +37,8 @@ const RepPerformanceTable = ({ teamData }) => {
                                     <div className='font-medium text-gray-900'>
                                         {rep.name}
                                     </div>
-                                    <div className='text-gray-500 text-xs'>
-                                        {rep.role}
+                                    <div className='mt-1'>
+                                        <RoleBadge role={rep.role} />
                                     </div>
                                 </td>
                                 <td className='px-6 py-4 text-gray-700'>

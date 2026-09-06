@@ -1,3 +1,4 @@
+// server/controllers/leadController.js
 import leadModel from '../models/leadModel.js'
 import studentModel from '../models/studentModel.js'
 import userModel from '../models/userModel.js'
@@ -76,7 +77,6 @@ export const getLeads = asyncHandler(async (req, res) => {
     if (source) query.source = source
     if (city) query.city = new RegExp(city, 'i')
 
-    // NEW: Handle Next Follow-Up Date filtering (exact match for the selected day)
     if (followUpDate) {
         const startOfDay = new Date(followUpDate)
         startOfDay.setHours(0, 0, 0, 0)
@@ -98,8 +98,16 @@ export const getLeads = asyncHandler(async (req, res) => {
     const leads = await leadModel
         .find(query)
         .populate('interestedCourses', 'courseTitle fee category')
-        .populate('assignedTo', 'firstName lastName email')
-        .sort({ nextFollowUpDate: 1, createdAt: -1 }) // Sort upcoming follow-ups first
+        // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+        .populate({
+            path: 'assignedTo',
+            select: 'firstName lastName email role',
+            populate: {
+                path: 'role',
+                select: 'name',
+            },
+        })
+        .sort({ nextFollowUpDate: 1, createdAt: -1 })
         .skip(startIndex)
         .limit(parsedLimit)
 
@@ -122,18 +130,24 @@ export const getLeadById = asyncHandler(async (req, res) => {
     const lead = await leadModel
         .findById(req.params.id)
         .populate('interestedCourses', 'courseTitle fee category')
-        .populate('assignedTo', 'firstName lastName email')
+        // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+        .populate({
+            path: 'assignedTo',
+            select: 'firstName lastName email role',
+            populate: {
+                path: 'role',
+                select: 'name',
+            },
+        })
 
     if (!lead) {
         res.status(404)
         throw new Error('Lead not found')
     }
 
-    // 1. Resolve role cleanly
     const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
     const isAdmin = roleName === 'admin'
 
-    // 2. Ownership check: Non-admins cannot inspect leads assigned to others
     const leadOwnerId = lead.assignedTo?._id?.toString()
     if (!isAdmin && leadOwnerId !== req.user._id.toString()) {
         res.status(403)
@@ -159,37 +173,39 @@ export const updateLead = asyncHandler(async (req, res) => {
         throw new Error('Lead not found')
     }
 
-    // 1. Resolve role cleanly
     const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
     const isAdmin = roleName === 'admin'
 
-    // 2. Ownership check: User must be an admin OR the current assignee
     const isOwner = lead.assignedTo?.toString() === req.user._id.toString()
     if (!isAdmin && !isOwner) {
         res.status(403)
         throw new Error('Not authorized to update this lead')
     }
 
-    // 3. Security Sanitize: Strip unauthorized fields
     const updates = { ...req.body }
     if (!isAdmin) {
-        delete updates.assignedTo // Non-admins cannot transfer leads
+        delete updates.assignedTo
     }
 
-    // 4. Identify Transition State
     const isTransitioningToEnrolled =
         updates.status === 'ENROLLED' && lead.status !== 'ENROLLED'
 
-    // 5. Persistence with validation
     const updatedLead = await leadModel
         .findByIdAndUpdate(req.params.id, updates, {
             new: true,
             runValidators: true,
         })
         .populate('interestedCourses', 'courseTitle fee category')
-        .populate('assignedTo', 'firstName lastName email')
+        // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+        .populate({
+            path: 'assignedTo',
+            select: 'firstName lastName email role',
+            populate: {
+                path: 'role',
+                select: 'name',
+            },
+        })
 
-    // 6. Spawn the Student Document if the lead just converted
     if (isTransitioningToEnrolled) {
         const studentExists = await studentModel.findOne({ lead: lead._id })
 
@@ -197,7 +213,7 @@ export const updateLead = asyncHandler(async (req, res) => {
             await studentModel.create({
                 lead: lead._id,
                 fullName: lead.fullName,
-                email: lead.email || `pending-${lead._id}@trainedge.com`, // Fallback for safety if email was optional during lead creation
+                email: lead.email || `pending-${lead._id}@trainedge.com`,
                 phone: lead.phone,
                 salesCounselor: lead.assignedTo,
                 status: 'PENDING_ASSIGNMENT',
@@ -217,14 +233,12 @@ export const updateLead = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 // ==========================================
 export const deleteLead = asyncHandler(async (req, res) => {
-    // 1. Role verification: strictly Admins only
     const roleName = (req.user.role?.name || req.user.role || '').toLowerCase()
     if (roleName !== 'admin') {
         res.status(403)
         throw new Error('Access denied. Only administrators can delete leads.')
     }
 
-    // 2. Locate and delete the document in one operation
     const lead = await leadModel.findByIdAndDelete(req.params.id)
 
     if (!lead) {
@@ -232,10 +246,8 @@ export const deleteLead = asyncHandler(async (req, res) => {
         throw new Error('Lead not found')
     }
 
-    // Optional Cleanup: If a lead is deleted, you might also want to delete the pending student record
     await studentModel.findOneAndDelete({ lead: req.params.id })
 
-    // 3. Return the deleted id for immediate React state reconciliation
     res.status(200).json({
         success: true,
         message: 'Lead permanently removed',
@@ -268,7 +280,6 @@ export const importLeadsCSV = asyncHandler(async (req, res) => {
                 try {
                     const cleanRow = {}
                     Object.keys(row).forEach((k) => {
-                        // Strip invisible BOM characters and normalize header keys
                         const cleanKey = k
                             .replace(/^\ufeff/, '')
                             .trim()
@@ -276,7 +287,6 @@ export const importLeadsCSV = asyncHandler(async (req, res) => {
                         cleanRow[cleanKey] = row[k]?.trim()
                     })
 
-                    // 1. Resolve Assigned User (Flexible fallback)
                     let assignedUserId = req.user._id
                     const rawAssignee =
                         cleanRow['assignedto'] || cleanRow['assignedemail']
@@ -308,7 +318,6 @@ export const importLeadsCSV = asyncHandler(async (req, res) => {
                         }
                     }
 
-                    // 2. Resolve Interested Courses (Checks title, courseTitle, or name)
                     let courseIds = []
                     const rawCourses =
                         cleanRow['interestedcourses'] || cleanRow['coursetitle']
@@ -357,7 +366,6 @@ export const importLeadsCSV = asyncHandler(async (req, res) => {
                         }
                     }
 
-                    // 3. Handle Tags Array
                     let parsedTags = []
                     if (cleanRow['tags']) {
                         parsedTags = cleanRow['tags']
