@@ -133,3 +133,35 @@ export const getDemos = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, data: demos })
 })
+
+export const rescheduleDemo = asyncHandler(async (req, res) => {
+    const { newDate, assignedTo, reason } = req.body
+
+    const session = await demoSessionModel.findById(req.params.id)
+
+    if (!session) {
+        res.status(404)
+        throw new Error('Demo Session not found')
+    }
+
+    const oldDate = new Date(session.scheduledDate)
+    session.scheduledDate = new Date(newDate)
+    if (assignedTo) session.assignedTo = assignedTo
+    await session.save()
+
+    // Automatically log the reschedule reason to the Lead's timeline
+    await leadActivityModel.create({
+        lead: session.lead,
+        performedBy: req.user._id,
+        type: 'NOTE',
+        summary: `🗓️ Demo Rescheduled from ${oldDate.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })} to ${session.scheduledDate.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}. \nReason: ${reason}`,
+        details: { demoSessionId: session._id },
+    })
+
+    // Auto-update the lead's next follow-up date to match the new demo date
+    await leadModel.findByIdAndUpdate(session.lead, {
+        nextFollowUpDate: session.scheduledDate,
+    })
+
+    res.status(200).json({ success: true, data: session })
+})

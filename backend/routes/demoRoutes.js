@@ -6,6 +6,7 @@ import {
     scheduleDemo,
     completeDemo,
     getDemos, // Updated controller import
+    rescheduleDemo,
 } from '../controllers/demoControllers.js'
 import { protect } from '../middlewares/authMiddleware.js'
 
@@ -21,6 +22,9 @@ router
 router.route('/schedule').post(protect, scheduleDemo)
 
 router.route('/schedule/:id/complete').put(protect, completeDemo)
+
+// --- NEW RESCHEDULE ROUTE ---
+router.route('/schedule/:id/reschedule').put(protect, rescheduleDemo)
 
 // Calendar/Report Routes
 // Changed from /upcoming to /sessions to reflect flexible querying
