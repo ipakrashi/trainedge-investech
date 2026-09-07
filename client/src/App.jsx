@@ -22,6 +22,10 @@ import ManagePaymentModes from './pages/admin/ManagePaymentModes'
 import BatchesOverview from './pages/lms/BatchesOverview'
 import BatchDetail from './pages/lms/BatchDetail'
 
+// --- NEW IMPORTS ---
+import ManageDemoMaster from './pages/admin/ManageDemoMaster'
+import DemoCalendar from './pages/demos/DemoCalendar'
+
 const App = () => {
     return (
         <BrowserRouter>
@@ -38,6 +42,12 @@ const App = () => {
                         <Route path='/pipeline' element={<Pipeline />} />
                         <Route path='/reports' element={<Reports />} />
                         <Route path='/students' element={<StudentRoster />} />
+
+                        {/* --- NEW: SALES/ADMIN DEMO CALENDAR --- */}
+                        <Route
+                            path='/demos/calendar'
+                            element={<DemoCalendar />}
+                        />
 
                         {/* ADMIN & FACULTY ROUTES */}
                         <Route path='/batches' element={<BatchesOverview />} />
@@ -87,6 +97,11 @@ const App = () => {
                             <Route
                                 path='/admin/payment-modes'
                                 element={<ManagePaymentModes />}
+                            />
+                            {/* --- NEW: ADMIN DEMO MASTER --- */}
+                            <Route
+                                path='/admin/demo-master'
+                                element={<ManageDemoMaster />}
                             />
                         </Route>
                     </Route>

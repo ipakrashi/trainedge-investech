@@ -9,9 +9,11 @@ const checkIsAdmin = (user) => {
     return roleName.toString().toLowerCase() === 'admin'
 }
 
+// ==========================================
 // @desc    Add a new activity/interaction to a lead and optionally update follow-up date
 // @route   POST /api/lead-activities
 // @access  Private
+// ==========================================
 export const createActivity = async (req, res) => {
     try {
         const { lead, type, summary, details, nextFollowUpDate } = req.body
@@ -74,13 +76,14 @@ export const createActivity = async (req, res) => {
     }
 }
 
+// ==========================================
 // @desc    Get all activities timeline for a specific lead
-// @route   GET /api/activities/lead/:leadId
+// @route   GET /api/lead-activities/lead/:leadId
 // @access  Private
+// ==========================================
 export const getActivitiesByLead = async (req, res) => {
     try {
         const lead = await leadModel.findById(req.params.leadId)
-
         if (!lead) {
             return res
                 .status(404)
@@ -88,27 +91,31 @@ export const getActivitiesByLead = async (req, res) => {
         }
 
         const isAdmin = checkIsAdmin(req.user)
-
         if (
             !isAdmin &&
             lead.assignedTo.toString() !== req.user._id.toString()
         ) {
             return res.status(403).json({
                 success: false,
-                message: "Not authorized to view this lead's activities.",
+                message: 'Not authorized to view this lead.',
             })
         }
 
         const activities = await leadActivityModel
             .find({ lead: req.params.leadId })
-            // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+            // 1. Populate the user who performed the activity
             .populate({
                 path: 'performedBy',
                 select: 'firstName lastName email role',
-                populate: {
-                    path: 'role',
-                    select: 'name',
-                },
+                populate: { path: 'role', select: 'name' },
+            })
+            // 2. Deep populate the dedicated Demo Session (if it exists on this activity)
+            .populate({
+                path: 'details.demoSessionId',
+                populate: [
+                    { path: 'demoMaster', select: 'title durationMinutes' },
+                    { path: 'assignedTo', select: 'firstName lastName' },
+                ],
             })
             .sort({ createdAt: -1 })
 
@@ -131,13 +138,14 @@ export const getActivitiesByLead = async (req, res) => {
     }
 }
 
-// @desc    Update a specific activity
-// @route   PUT /api/activities/:id
+// ==========================================
+// @desc    Update a specific generic activity
+// @route   PUT /api/lead-activities/:id
 // @access  Private
+// ==========================================
 export const updateActivity = async (req, res) => {
     try {
         let activity = await leadActivityModel.findById(req.params.id)
-
         if (!activity) {
             return res
                 .status(404)
@@ -145,7 +153,6 @@ export const updateActivity = async (req, res) => {
         }
 
         const isAdmin = checkIsAdmin(req.user)
-
         if (
             !isAdmin &&
             activity.performedBy.toString() !== req.user._id.toString()
@@ -158,25 +165,26 @@ export const updateActivity = async (req, res) => {
 
         const { lead, performedBy, ...updateData } = req.body
 
-        activity = await leadActivityModel
-            .findByIdAndUpdate(req.params.id, updateData, {
-                new: true,
-                runValidators: true,
-            })
-            // DEEP POPULATE: Resolves the User, and then resolves the User's Role
+        // Apply standard updates
+        Object.assign(activity, updateData)
+        await activity.save()
+
+        const updatedActivity = await leadActivityModel
+            .findById(activity._id)
             .populate({
                 path: 'performedBy',
                 select: 'firstName lastName email role',
-                populate: {
-                    path: 'role',
-                    select: 'name',
-                },
+                populate: { path: 'role', select: 'name' },
+            })
+            .populate({
+                path: 'details.demoSessionId',
+                populate: [
+                    { path: 'demoMaster', select: 'title durationMinutes' },
+                    { path: 'assignedTo', select: 'firstName lastName' },
+                ],
             })
 
-        res.status(200).json({
-            success: true,
-            data: activity,
-        })
+        res.status(200).json({ success: true, data: updatedActivity })
     } catch (error) {
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(
@@ -194,9 +202,11 @@ export const updateActivity = async (req, res) => {
     }
 }
 
+// ==========================================
 // @desc    Delete an activity
-// @route   DELETE /api/activities/:id
+// @route   DELETE /api/lead-activities/:id
 // @access  Private
+// ==========================================
 export const deleteActivity = async (req, res) => {
     try {
         const activity = await leadActivityModel.findById(req.params.id)

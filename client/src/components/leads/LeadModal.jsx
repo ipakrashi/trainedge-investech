@@ -1,3 +1,5 @@
+// src/components/leads/LeadModal.jsx
+import { FiMonitor } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 import api from '../../api/axios.js'
 
@@ -20,13 +22,20 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
     const [formData, setFormData] = useState(defaultFormState)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
+    // Standard Dropdowns
     const [availableCourses, setAvailableCourses] = useState([])
     const [availableSources, setAvailableSources] = useState([])
     const [availableStatuses, setAvailableStatuses] = useState([])
     const [availableExperiences, setAvailableExperiences] = useState([])
     const [availableUsers, setAvailableUsers] = useState([])
 
-    // Determine Admin status
+    // Demo Dropdowns & State
+    const [demoMasters, setDemoMasters] = useState([])
+    const [demoMasterId, setDemoMasterId] = useState('')
+    const [demoDate, setDemoDate] = useState('')
+    const [demoAssignee, setDemoAssignee] = useState('')
+    const [demoSummary, setDemoSummary] = useState('')
+
     const roleName = (
         currentUser?.role?.name ||
         currentUser?.role ||
@@ -42,10 +51,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                     api.get('/sources'),
                     api.get('/statuses'),
                     api.get('/experiences'),
+                    api.get('/demos/master'), // Fetch Demos
                 ]
-                if (isAdmin) {
-                    requests.push(api.get('/users'))
-                }
+                if (isAdmin) requests.push(api.get('/users'))
 
                 const responses = await Promise.all(requests)
 
@@ -53,15 +61,20 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                 const sources = responses[1]?.data?.data || []
                 const statuses = responses[2]?.data?.data || []
                 const experiences = responses[3]?.data?.data || []
+                const demos = responses[4]?.data?.data || []
                 const users = isAdmin
-                    ? responses[4]?.data?.data || responses[4]?.data || []
+                    ? responses[5]?.data?.data || responses[5]?.data || []
                     : []
 
                 setAvailableCourses(courses)
                 setAvailableSources(sources)
                 setAvailableStatuses(statuses)
                 setAvailableExperiences(experiences)
+                setDemoMasters(demos)
                 if (isAdmin) setAvailableUsers(users)
+
+                if (demos.length > 0) setDemoMasterId(demos[0]._id)
+                setDemoAssignee(currentUser?._id || '')
 
                 if (!initialData) {
                     setFormData((prev) => ({
@@ -70,19 +83,18 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                         status: prev.status || statuses[0]?.name || '',
                         experienceLevel:
                             prev.experienceLevel || experiences[0]?.name || '',
+                        assignedTo: currentUser?._id || '',
                     }))
                 }
             } catch (error) {
                 console.error('Failed to fetch dropdown datasets:', error)
             }
         }
-
         if (isOpen) fetchDropdownData()
-    }, [isOpen, isAdmin, initialData])
+    }, [isOpen, isAdmin, initialData, currentUser])
 
     useEffect(() => {
         if (!isOpen) return
-
         if (initialData) {
             setFormData({
                 ...defaultFormState,
@@ -101,6 +113,8 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                 lostReason: initialData.lostReason || '',
                 estimatedValue: Number(initialData.estimatedValue) || 0,
             })
+            setDemoDate('') // Reset inline demo fields on edit load
+            setDemoSummary('')
         } else {
             setFormData({
                 ...defaultFormState,
@@ -121,7 +135,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
 
     const handleChange = (e) => {
         const { name, value, type, multiple, selectedOptions } = e.target
-
         if (multiple) {
             const values = Array.from(selectedOptions, (opt) => opt.value)
             setFormData((prev) => ({ ...prev, [name]: values }))
@@ -142,6 +155,13 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
         e.preventDefault()
         setIsSubmitting(true)
 
+        // Prevent submission if they chose DEMO_SCHEDULED but didn't fill out the new demo date
+        if (formData.status === 'DEMO_SCHEDULED' && !demoDate && !initialData) {
+            alert('You must provide a Date & Time to schedule the demo.')
+            setIsSubmitting(false)
+            return
+        }
+
         const payload = { ...formData }
         payload.estimatedValue = Number(payload.estimatedValue) || 0
 
@@ -150,7 +170,20 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
         if (!payload.assignedTo) delete payload.assignedTo
 
         try {
-            await onSubmit(payload)
+            // 1. Submit the Lead
+            const savedLead = await onSubmit(payload)
+
+            // 2. Chained API: If status is DEMO_SCHEDULED and they entered a date, schedule it instantly.
+            if (savedLead && payload.status === 'DEMO_SCHEDULED' && demoDate) {
+                await api.post('/demos/schedule', {
+                    leadId: savedLead._id,
+                    demoMasterId,
+                    assignedTo: demoAssignee,
+                    scheduledDate: demoDate,
+                    summary:
+                        demoSummary || 'Demo Scheduled during Lead Creation',
+                })
+            }
         } catch (error) {
             console.error('Form submission failed:', error)
         } finally {
@@ -191,10 +224,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='fullName'
                                     value={formData.fullName}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Phone Number *
@@ -205,10 +237,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='phone'
                                     value={formData.phone}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Email
@@ -218,10 +249,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='email'
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     City
@@ -231,10 +261,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='city'
                                     value={formData.city}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Source
@@ -243,7 +272,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='source'
                                     value={formData.source}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 bg-white outline-none'
                                 >
                                     {availableSources.map((s) => (
                                         <option key={s._id} value={s.name}>
@@ -252,7 +281,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     ))}
                                 </select>
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Status
@@ -261,7 +289,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='status'
                                     value={formData.status}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 bg-white outline-none'
                                 >
                                     {availableStatuses.map((s) => (
                                         <option key={s._id} value={s.name}>
@@ -271,8 +299,99 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                 </select>
                             </div>
 
+                            {/* CONDITIONAL DEMO SCHEDULING BLOCK */}
+                            {formData.status === 'DEMO_SCHEDULED' && (
+                                <div className='md:col-span-2 bg-purple-50 p-4 rounded-xl border border-purple-100 animate-fade-in-up mt-2'>
+                                    <h3 className='text-sm font-bold text-purple-900 mb-3 flex items-center gap-2'>
+                                        <FiMonitor /> Setup Demo Session
+                                    </h3>
+                                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-3'>
+                                        <div>
+                                            <label className='block text-xs font-semibold text-purple-800 mb-1'>
+                                                Select Topic
+                                            </label>
+                                            <select
+                                                value={demoMasterId}
+                                                onChange={(e) =>
+                                                    setDemoMasterId(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className='w-full border border-purple-200 rounded-lg px-3 py-2 text-sm outline-none'
+                                            >
+                                                {demoMasters.map((d) => (
+                                                    <option
+                                                        key={d._id}
+                                                        value={d._id}
+                                                    >
+                                                        {d.title} (
+                                                        {d.durationMinutes}m)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className='block text-xs font-semibold text-purple-800 mb-1'>
+                                                Date & Time *
+                                            </label>
+                                            <input
+                                                required={!initialData}
+                                                type='datetime-local'
+                                                value={demoDate}
+                                                onChange={(e) =>
+                                                    setDemoDate(e.target.value)
+                                                }
+                                                className='w-full border border-purple-200 rounded-lg px-3 py-2 text-sm outline-none'
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                        <div>
+                                            <label className='block text-xs font-semibold text-purple-800 mb-1'>
+                                                Assign To
+                                            </label>
+                                            <select
+                                                value={demoAssignee}
+                                                onChange={(e) =>
+                                                    setDemoAssignee(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className='w-full border border-purple-200 rounded-lg px-3 py-2 text-sm outline-none bg-white'
+                                            >
+                                                {availableUsers.map((u) => (
+                                                    <option
+                                                        key={u._id}
+                                                        value={u._id}
+                                                    >
+                                                        {u.firstName}{' '}
+                                                        {u.lastName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className='block text-xs font-semibold text-purple-800 mb-1'>
+                                                Demo Notes (Optional)
+                                            </label>
+                                            <input
+                                                type='text'
+                                                placeholder='Meeting link or notes'
+                                                value={demoSummary}
+                                                onChange={(e) =>
+                                                    setDemoSummary(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className='w-full border border-purple-200 rounded-lg px-3 py-2 text-sm outline-none'
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {formData.status === 'LOST' && (
-                                <div className='md:col-span-2'>
+                                <div className='md:col-span-2 mt-2'>
                                     <label className='block text-sm font-medium text-red-700 mb-1'>
                                         Reason for Loss *
                                     </label>
@@ -283,7 +402,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                         value={formData.lostReason}
                                         onChange={handleChange}
                                         placeholder='Briefly explain why this lead was lost'
-                                        className='w-full border border-red-300 rounded-lg px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500 bg-red-50'
+                                        className='w-full border border-red-300 rounded-lg px-3 py-2 text-sm bg-red-50 outline-none'
                                     />
                                 </div>
                             )}
@@ -296,7 +415,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='experienceLevel'
                                     value={formData.experienceLevel}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 bg-white outline-none'
                                 >
                                     {availableExperiences.map((e) => (
                                         <option key={e._id} value={e.name}>
@@ -305,8 +424,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     ))}
                                 </select>
                             </div>
-
-                            {/* ADMIN EXCLUSIVE: Assign Lead To */}
                             {isAdmin && (
                                 <div>
                                     <label className='block text-sm font-medium text-gray-700 mb-1'>
@@ -316,7 +433,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                         name='assignedTo'
                                         value={formData.assignedTo}
                                         onChange={handleChange}
-                                        className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                        className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 bg-white outline-none'
                                     >
                                         <option value={currentUser?._id || ''}>
                                             Assign to Me (Default)
@@ -333,7 +450,6 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     </select>
                                 </div>
                             )}
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Next Follow-Up Date
@@ -343,10 +459,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='nextFollowUpDate'
                                     value={formData.nextFollowUpDate || ''}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 outline-none'
                                 />
                             </div>
-
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Estimated Value (₹)
@@ -356,10 +471,9 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='estimatedValue'
                                     value={formData.estimatedValue}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 outline-none'
                                 />
                             </div>
-
                             <div className='md:col-span-2'>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                                     Interested Courses
@@ -369,7 +483,7 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                                     name='interestedCourses'
                                     value={formData.interestedCourses}
                                     onChange={handleChange}
-                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 bg-white outline-none'
                                     size={3}
                                 >
                                     {availableCourses.map((course) => (
@@ -402,7 +516,11 @@ const LeadModal = ({ isOpen, onClose, onSubmit, initialData, currentUser }) => {
                             disabled={isSubmitting}
                             className='px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50'
                         >
-                            {isSubmitting ? 'Saving...' : 'Save Lead'}
+                            {isSubmitting
+                                ? 'Saving...'
+                                : formData.status === 'DEMO_SCHEDULED'
+                                  ? 'Save & Schedule Demo'
+                                  : 'Save Lead'}
                         </button>
                     </div>
                 </form>

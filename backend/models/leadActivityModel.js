@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+
 const leadActivitySchema = mongoose.Schema(
     {
         lead: {
@@ -43,15 +44,20 @@ const leadActivitySchema = mongoose.Schema(
             },
             oldStatus: String,
             newStatus: String,
+            // --- NEW: Reference to the dedicated Demo Session collection ---
+            demoSessionId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'demoSessionModel',
+            },
         },
     },
     {
         timestamps: true,
     },
 )
-const leadActivityModel = mongoose.model(
+
+export default mongoose.model(
     'leadActivityModel',
     leadActivitySchema,
     'leadActivities',
 )
-export default leadActivityModel

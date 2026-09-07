@@ -86,15 +86,20 @@ const Leads = () => {
 
     const handleSaveLead = async (formData) => {
         try {
+            let savedLead
             if (editingLead) {
-                await api.put(`/leads/${editingLead._id}`, formData)
+                const res = await api.put(`/leads/${editingLead._id}`, formData)
+                savedLead = res.data.data
             } else {
-                await api.post('/leads', formData)
+                const res = await api.post('/leads', formData)
+                savedLead = res.data.data
             }
             await fetchData()
             handleCloseModal()
+            return savedLead // CRITICAL: Return so LeadModal can chain the demo API
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to save lead')
+            throw err
         }
     }
 

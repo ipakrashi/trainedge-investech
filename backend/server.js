@@ -17,6 +17,7 @@ import paymentRoutes from './routes/paymentRoutes.js'
 import batchRoutes from './routes/batchRoutes.js'
 import evaluationRoutes from './routes/evaluationRoutes.js'
 import sessionLogRoutes from './routes/sessionLogRoutes.js'
+import demoRoutes from './routes/demoRoutes.js'
 
 import cookieParser from 'cookie-parser'
 import path from 'path'
@@ -53,6 +54,7 @@ app.use('/api/payments', paymentRoutes)
 app.use('/api/batches', batchRoutes)
 app.use('/api/evaluations', evaluationRoutes)
 app.use('/api/sessions', sessionLogRoutes)
+app.use('/api/demos', demoRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {

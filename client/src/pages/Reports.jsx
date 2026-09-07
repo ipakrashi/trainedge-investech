@@ -7,6 +7,7 @@ import FinanceReportView from '../components/reports/views/FinanceReportView'
 import SalesReportView from '../components/reports/views/SalesReportView'
 import CoursesReportView from '../components/reports/views/CoursesReportView'
 import AcademicReportView from '../components/reports/views/AcademicReportView'
+import DemoReportView from '../components/reports/views/DemoReportView'
 
 const Reports = () => {
     const userInfoString = localStorage.getItem('userInfo')
@@ -30,6 +31,7 @@ const Reports = () => {
     const [allPayments, setAllPayments] = useState([])
     const [allStudents, setAllStudents] = useState([])
     const [allBatches, setAllBatches] = useState([])
+    const [allDemos, setAllDemos] = useState([]) // NEW: Demos State
 
     // Academic Report State
     const [selectedBatchId, setSelectedBatchId] = useState('')
@@ -45,10 +47,11 @@ const Reports = () => {
 
     const [isLoading, setIsLoading] = useState(true)
 
+    // Safely parallelize independent payload requests
     const fetchAllData = useCallback(async () => {
         setIsLoading(true)
         try {
-            const [leadsRes, paymentsRes, studentsRes, batchesRes] =
+            const [leadsRes, paymentsRes, studentsRes, batchesRes, demosRes] =
                 await Promise.allSettled([
                     isAdmin || isSales
                         ? api.get('/leads?limit=5000')
@@ -62,15 +65,19 @@ const Reports = () => {
                     isAdmin || isAccounts
                         ? api.get('/batches')
                         : Promise.resolve({ data: { data: [] } }),
+                    isAdmin || isSales
+                        ? api.get('/demos/sessions?status=All')
+                        : Promise.resolve({ data: { data: [] } }),
                 ])
 
-            if (isAdmin || isSales)
+            if (isAdmin || isSales) {
                 setAllLeads(leadsRes.value?.data?.data || [])
+                setAllDemos(demosRes.value?.data?.data || [])
+            }
             if (isAdmin || isAccounts) {
                 setAllPayments(paymentsRes.value?.data?.data || [])
                 setAllStudents(studentsRes.value?.data?.data || [])
-            }
-            if (isAdmin || isAccounts) {
+
                 const batchesList = batchesRes.value?.data?.data || []
                 setAllBatches(batchesList)
                 if (batchesList.length > 0 && !selectedBatchId) {
@@ -88,6 +95,7 @@ const Reports = () => {
         fetchAllData()
     }, [fetchAllData])
 
+    // Fetch Academic Report when selected batch changes
     useEffect(() => {
         if (activeTab === 'academic' && selectedBatchId) {
             const fetchAcademicReport = async () => {
@@ -281,6 +289,122 @@ const Reports = () => {
         }
     }, [allLeads, timeRange])
 
+    // --- NEW: Compute Demo Performance Data ---
+    const { demoReportData } = useMemo(() => {
+        if (!isAdmin && !isSales) return { demoReportData: null }
+
+        const now = new Date()
+        const filtered = allDemos.filter((demo) => {
+            if (timeRange === 'all') return true
+            const daysDiff =
+                (now - new Date(demo.scheduledDate)) / (1000 * 60 * 60 * 24)
+            if (timeRange === '30d') return daysDiff <= 30
+            if (timeRange === '90d') return daysDiff <= 90
+            if (timeRange === '180d') return daysDiff <= 180
+            if (timeRange === '1y') return daysDiff <= 365
+            return true
+        })
+
+        const totalDemos = filtered.length
+        const completedDemos = filtered.filter((d) => d.status === 'COMPLETED')
+
+        let totalRatingScore = 0
+        let ratedCount = 0
+        completedDemos.forEach((d) => {
+            if (d.rating) {
+                totalRatingScore += d.rating
+                ratedCount++
+            }
+        })
+        const averageRating =
+            ratedCount > 0 ? (totalRatingScore / ratedCount).toFixed(1) : 0
+
+        // Calculate Demo-to-Close Conversion Rate
+        let enrolledFromDemos = 0
+        const completedLeadIds = [
+            ...new Set(completedDemos.map((d) => d.lead?._id || d.lead)),
+        ]
+
+        completedLeadIds.forEach((leadId) => {
+            const match = allLeads.find((l) => l._id === leadId)
+            if (match && match.status === 'ENROLLED') {
+                enrolledFromDemos++
+            }
+        })
+        const conversionRate =
+            completedDemos.length > 0
+                ? ((enrolledFromDemos / completedDemos.length) * 100).toFixed(1)
+                : 0
+
+        const topicMap = {}
+        const repMap = {}
+
+        completedDemos.forEach((d) => {
+            const topic = d.demoMaster?.title || 'Custom Walkthrough'
+            const rep =
+                `${d.assignedTo?.firstName || ''} ${d.assignedTo?.lastName || ''}`.trim() ||
+                'Unknown'
+
+            if (!topicMap[topic])
+                topicMap[topic] = {
+                    title: topic,
+                    conductedCount: 0,
+                    totalRating: 0,
+                    ratedCount: 0,
+                }
+            if (!repMap[rep])
+                repMap[rep] = {
+                    name: rep,
+                    conductedCount: 0,
+                    totalRating: 0,
+                    ratedCount: 0,
+                }
+
+            topicMap[topic].conductedCount++
+            repMap[rep].conductedCount++
+
+            if (d.rating) {
+                topicMap[topic].totalRating += d.rating
+                topicMap[topic].ratedCount++
+                repMap[rep].totalRating += d.rating
+                repMap[rep].ratedCount++
+            }
+        })
+
+        const topicPerformance = Object.values(topicMap)
+            .map((t) => ({
+                ...t,
+                avgRating:
+                    t.ratedCount > 0
+                        ? (t.totalRating / t.ratedCount).toFixed(1)
+                        : 0,
+            }))
+            .sort((a, b) => b.conductedCount - a.conductedCount)
+
+        const repPerformance = Object.values(repMap)
+            .map((r) => ({
+                ...r,
+                avgRating:
+                    r.ratedCount > 0
+                        ? (r.totalRating / r.ratedCount).toFixed(1)
+                        : 0,
+            }))
+            .sort((a, b) => b.conductedCount - a.conductedCount)
+
+        return {
+            demoReportData: {
+                metrics: {
+                    totalDemos,
+                    completedDemos: completedDemos.length,
+                    averageRating,
+                    conversionRate,
+                },
+                topicPerformance,
+                repPerformance,
+            },
+        }
+    }, [allDemos, allLeads, timeRange, isAdmin, isSales])
+
     // Compute Finance Data
     const { filteredPayments, financeReportData } = useMemo(() => {
         const now = new Date()
@@ -296,7 +420,6 @@ const Reports = () => {
         })
 
         const totalRevenue = filtered.reduce((sum, p) => sum + p.amount, 0)
-
         const startOfDay = new Date()
         startOfDay.setHours(0, 0, 0, 0)
         const todayCollected = allPayments
@@ -446,6 +569,21 @@ const Reports = () => {
         triggerDownload(headers, csvRows, 'sales_pipeline')
     }
 
+    const handleExportDemosCSV = () => {
+        if (
+            !demoReportData?.topicPerformance?.length &&
+            !demoReportData?.repPerformance?.length
+        )
+            return alert('No demo data to export.')
+        const headers = ['Topic', 'Conducted Count', 'Average Rating']
+        const csvRows = demoReportData.topicPerformance.map((t) =>
+            [t.title, t.conductedCount, t.avgRating]
+                .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+                .join(','),
+        )
+        triggerDownload(headers, csvRows, 'demo_topic_performance')
+    }
+
     const handleExportFinanceCSV = () => {
         if (!filteredPayments.length) return alert('No data to export.')
         const headers = [
@@ -519,6 +657,7 @@ const Reports = () => {
 
     const handleExportCurrentTab = () => {
         if (activeTab === 'sales') handleExportSalesCSV()
+        else if (activeTab === 'demos') handleExportDemosCSV()
         else if (activeTab === 'finance') handleExportFinanceCSV()
         else if (activeTab === 'courses') handleExportCoursesCSV()
         else if (activeTab === 'academic') handleExportAcademicCSV()
@@ -526,6 +665,8 @@ const Reports = () => {
 
     const getRecordCount = () => {
         if (activeTab === 'sales') return filteredLeads.length
+        if (activeTab === 'demos')
+            return demoReportData?.metrics?.totalDemos || 0
         if (activeTab === 'finance') return filteredPayments.length
         if (activeTab === 'courses') return courseReportData.totalEnrollments
         if (activeTab === 'academic')
@@ -554,15 +695,17 @@ const Reports = () => {
                 />
 
                 {/* Role-Based Tab Navigation */}
-                {(isAdmin || isAccounts) && (
+                {(isAdmin || isAccounts || isSales) && (
                     <div className='flex gap-4 mb-6 overflow-x-auto pb-2'>
-                        <button
-                            onClick={() => setActiveTab('finance')}
-                            className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'finance' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
-                        >
-                            Financial Reporting & Collections
-                        </button>
-                        {isAdmin && (
+                        {(isAdmin || isAccounts) && (
+                            <button
+                                onClick={() => setActiveTab('finance')}
+                                className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'finance' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                Financial Reporting & Collections
+                            </button>
+                        )}
+                        {(isAdmin || isSales) && (
                             <>
                                 <button
                                     onClick={() => setActiveTab('sales')}
@@ -570,6 +713,16 @@ const Reports = () => {
                                 >
                                     Sales Pipeline Reporting
                                 </button>
+                                <button
+                                    onClick={() => setActiveTab('demos')}
+                                    className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'demos' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                    Demo Performance Reporting
+                                </button>
+                            </>
+                        )}
+                        {isAdmin && (
+                            <>
                                 <button
                                     onClick={() => setActiveTab('courses')}
                                     className={`px-4 py-2 text-sm whitespace-nowrap font-medium rounded-lg transition-colors ${activeTab === 'courses' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
@@ -607,6 +760,13 @@ const Reports = () => {
                 {activeTab === 'sales' && (
                     <SalesReportView salesReportData={salesReportData} />
                 )}
+
+                {/* --- NEW DEMO REPORT VIEW --- */}
+                {activeTab === 'demos' &&
+                    (isAdmin || isSales) &&
+                    demoReportData && (
+                        <DemoReportView demoReportData={demoReportData} />
+                    )}
 
                 {activeTab === 'courses' && isAdmin && (
                     <CoursesReportView courseReportData={courseReportData} />
