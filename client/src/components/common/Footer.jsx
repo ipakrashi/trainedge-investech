@@ -22,8 +22,12 @@ const Footer = () => {
         userInfo?.role ||
         ''
     ).toLowerCase()
+
+    // 3. Define access flags
     const isAdmin = userRole === 'admin'
     const isFaculty = userRole === 'faculty'
+    const isSales = userRole === 'sales'
+    const isAccounts = userRole === 'accounts'
 
     return (
         <footer className='bg-gray-900 text-gray-300 py-10 mt-auto'>
@@ -52,19 +56,51 @@ const Footer = () => {
                             Product
                         </h3>
                         <ul className='space-y-2 text-sm'>
-                            {/* Counselors and Admins see Pipeline */}
-                            {!isFaculty && (
-                                <li>
-                                    <Link
-                                        to='/pipeline'
-                                        className='hover:text-blue-400 transition-colors'
-                                    >
-                                        Pipeline Dashboard
-                                    </Link>
-                                </li>
+                            {/* Sales & Admin Links */}
+                            {(isAdmin || isSales) && (
+                                <>
+                                    <li>
+                                        <Link
+                                            to='/leads'
+                                            className='hover:text-blue-400 transition-colors'
+                                        >
+                                            Lead Management
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            to='/pipeline'
+                                            className='hover:text-blue-400 transition-colors'
+                                        >
+                                            Pipeline Dashboard
+                                        </Link>
+                                    </li>
+                                </>
                             )}
 
-                            {/* ONLY Admins see Pending Enrollments */}
+                            {/* Academic Links (Faculty & Admin) */}
+                            {(isAdmin || isFaculty) && (
+                                <>
+                                    <li>
+                                        <Link
+                                            to='/students'
+                                            className='hover:text-blue-400 transition-colors'
+                                        >
+                                            Student Roster
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            to='/batches'
+                                            className='hover:text-blue-400 transition-colors'
+                                        >
+                                            Batches & Cohorts
+                                        </Link>
+                                    </li>
+                                </>
+                            )}
+
+                            {/* Admin Only Operations */}
                             {isAdmin && (
                                 <li>
                                     <Link
@@ -76,20 +112,20 @@ const Footer = () => {
                                 </li>
                             )}
 
-                            {/* Admins and Faculty see the Roster */}
-                            {(isAdmin || isFaculty) && (
+                            {/* Finance Links (Accounts & Admin) */}
+                            {(isAdmin || isAccounts) && (
                                 <li>
                                     <Link
-                                        to='/students'
+                                        to='/admin/payments'
                                         className='hover:text-blue-400 transition-colors'
                                     >
-                                        Student Roster
+                                        Fee Payments Ledger
                                     </Link>
                                 </li>
                             )}
 
-                            {/* Counselors and Admins see Analytics */}
-                            {!isFaculty && (
+                            {/* Reporting (Admin, Sales, Accounts) */}
+                            {(isAdmin || isSales || isAccounts) && (
                                 <li>
                                     <Link
                                         to='/reports'
@@ -110,32 +146,32 @@ const Footer = () => {
                         <ul className='space-y-2 text-sm'>
                             <li>
                                 <Link
-                                    to='/help'
-                                    className='hover:text-blue-400 transition-colors'
+                                    to='#'
+                                    className='hover:text-blue-400 transition-colors cursor-default'
                                 >
                                     Help Center
                                 </Link>
                             </li>
                             <li>
                                 <Link
-                                    to='/api-docs'
-                                    className='hover:text-blue-400 transition-colors'
+                                    to='#'
+                                    className='hover:text-blue-400 transition-colors cursor-default'
                                 >
                                     API Documentation
                                 </Link>
                             </li>
                             <li>
                                 <Link
-                                    to='/privacy'
-                                    className='hover:text-blue-400 transition-colors'
+                                    to='#'
+                                    className='hover:text-blue-400 transition-colors cursor-default'
                                 >
                                     Privacy Policy
                                 </Link>
                             </li>
                             <li>
                                 <Link
-                                    to='/terms'
-                                    className='hover:text-blue-400 transition-colors'
+                                    to='#'
+                                    className='hover:text-blue-400 transition-colors cursor-default'
                                 >
                                     Terms of Service
                                 </Link>
@@ -183,28 +219,22 @@ const Footer = () => {
 
                     <div className='flex space-x-4'>
                         <a
-                            href='https://twitter.com'
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='text-gray-400 hover:text-white transition-colors'
+                            href='#'
+                            className='text-gray-400 hover:text-white transition-colors cursor-default'
                             aria-label='Twitter'
                         >
                             <FiTwitter className='text-xl' />
                         </a>
                         <a
-                            href='https://linkedin.com'
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='text-gray-400 hover:text-white transition-colors'
+                            href='#'
+                            className='text-gray-400 hover:text-white transition-colors cursor-default'
                             aria-label='LinkedIn'
                         >
                             <FiLinkedin className='text-xl' />
                         </a>
                         <a
-                            href='https://github.com'
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='text-gray-400 hover:text-white transition-colors'
+                            href='#'
+                            className='text-gray-400 hover:text-white transition-colors cursor-default'
                             aria-label='GitHub'
                         >
                             <FiGithub className='text-xl' />
