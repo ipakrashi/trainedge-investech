@@ -1,27 +1,14 @@
 // src/pages/Reports.jsx
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-    FiDollarSign,
-    FiTrendingUp,
-    FiTarget,
-    FiAward,
-    FiDownload,
-    FiCreditCard,
-    FiBook,
-    FiLayers,
-    FiCheckCircle,
-    FiAlertCircle,
-} from 'react-icons/fi'
 import api from '../api/axios'
-import StatCard from '../components/common/StatCard'
-import ConversionFunnel from '../components/reports/ConversionFunnel'
-import SourceBreakdown from '../components/reports/SourceBreakdown'
-import RepPerformanceTable from '../components/reports/RepPerformanceTable'
 import RecordPaymentModal from '../components/admin/RecordPaymentModal'
-import AccountsReceivableLedger from '../components/reports/AccountsReceivableLedger'
+import ReportToolbar from '../components/reports/ReportToolbar'
+import FinanceReportView from '../components/reports/views/FinanceReportView'
+import SalesReportView from '../components/reports/views/SalesReportView'
+import CoursesReportView from '../components/reports/views/CoursesReportView'
+import AcademicReportView from '../components/reports/views/AcademicReportView'
 
 const Reports = () => {
-    // 1. Role Initialization
     const userInfoString = localStorage.getItem('userInfo')
     const userInfo = userInfoString ? JSON.parse(userInfoString) : null
     const userRole = (
@@ -51,14 +38,13 @@ const Reports = () => {
 
     // A/R Ledger State
     const [arSearchQuery, setArSearchQuery] = useState('')
-    const [arStatusFilter, setArStatusFilter] = useState('DUE') // 'ALL', 'DUE', 'PAID'
+    const [arStatusFilter, setArStatusFilter] = useState('DUE')
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
     const [selectedStudentForPayment, setSelectedStudentForPayment] =
         useState(null)
 
     const [isLoading, setIsLoading] = useState(true)
 
-    // 2. Safely parallelize independent payload requests
     const fetchAllData = useCallback(async () => {
         setIsLoading(true)
         try {
@@ -88,7 +74,7 @@ const Reports = () => {
                 const batchesList = batchesRes.value?.data?.data || []
                 setAllBatches(batchesList)
                 if (batchesList.length > 0 && !selectedBatchId) {
-                    setSelectedBatchId(batchesList[0]._id) // Default to first batch
+                    setSelectedBatchId(batchesList[0]._id)
                 }
             }
         } catch (error) {
@@ -102,7 +88,6 @@ const Reports = () => {
         fetchAllData()
     }, [fetchAllData])
 
-    // Fetch Academic Report when selected batch changes
     useEffect(() => {
         if (activeTab === 'academic' && selectedBatchId) {
             const fetchAcademicReport = async () => {
@@ -122,7 +107,7 @@ const Reports = () => {
         }
     }, [activeTab, selectedBatchId])
 
-    // 3. Process Sales Data
+    // Compute Sales Data
     const { filteredLeads, salesReportData } = useMemo(() => {
         const now = new Date()
         const filtered = allLeads.filter((lead) => {
@@ -296,7 +281,7 @@ const Reports = () => {
         }
     }, [allLeads, timeRange])
 
-    // 4. Process Finance Data (Now with 5 Global Metrics)
+    // Compute Finance Data
     const { filteredPayments, financeReportData } = useMemo(() => {
         const now = new Date()
         const filtered = allPayments.filter((payment) => {
@@ -318,7 +303,6 @@ const Reports = () => {
             .filter((p) => new Date(p.paymentDate) >= startOfDay)
             .reduce((sum, p) => sum + p.amount, 0)
 
-        // Calculate Outstanding Dues & Expected Revenue globally from the student roster
         let expectedRevenue = 0
         let totalOutstanding = 0
         allStudents.forEach((s) => {
@@ -341,7 +325,7 @@ const Reports = () => {
         }
     }, [allPayments, allStudents, timeRange])
 
-    // 5. Process Course Enrollment Data
+    // Compute Course Data
     const { courseReportData } = useMemo(() => {
         if (!isAdmin)
             return { courseReportData: { totalEnrollments: 0, courses: [] } }
@@ -377,7 +361,7 @@ const Reports = () => {
         return { courseReportData: { totalEnrollments, courses } }
     }, [allStudents, timeRange, isAdmin])
 
-    // --- Process Active A/R Ledger Data ---
+    // Process A/R Ledger Data
     const filteredARStudents = useMemo(() => {
         return allStudents
             .filter((student) => {
@@ -406,7 +390,17 @@ const Reports = () => {
             })
     }, [allStudents, arSearchQuery, arStatusFilter])
 
-    // --- CSV Export Logics ---
+    // CSV Trigger Utilities
+    const triggerDownload = (headers, rows, filename) => {
+        const csvContent = [headers.join(','), ...rows].join('\n')
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = `trainEdge_${filename}_${timeRange}.csv`
+        link.click()
+        URL.revokeObjectURL(link.href)
+    }
+
     const handleExportSalesCSV = () => {
         if (!filteredLeads.length) return alert('No data to export.')
         const headers = [
@@ -523,14 +517,20 @@ const Reports = () => {
         triggerDownload(headers, rows, 'academic_cohort_report')
     }
 
-    const triggerDownload = (headers, rows, filename) => {
-        const csvContent = [headers.join(','), ...rows].join('\n')
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const link = document.createElement('a')
-        link.href = URL.createObjectURL(blob)
-        link.download = `trainEdge_${filename}_${timeRange}.csv`
-        link.click()
-        URL.revokeObjectURL(link.href)
+    const handleExportCurrentTab = () => {
+        if (activeTab === 'sales') handleExportSalesCSV()
+        else if (activeTab === 'finance') handleExportFinanceCSV()
+        else if (activeTab === 'courses') handleExportCoursesCSV()
+        else if (activeTab === 'academic') handleExportAcademicCSV()
+    }
+
+    const getRecordCount = () => {
+        if (activeTab === 'sales') return filteredLeads.length
+        if (activeTab === 'finance') return filteredPayments.length
+        if (activeTab === 'courses') return courseReportData.totalEnrollments
+        if (activeTab === 'academic')
+            return academicReportData?.data?.length || 0
+        return 0
     }
 
     if (isLoading && allStudents.length === 0) {
@@ -544,60 +544,16 @@ const Reports = () => {
     return (
         <div className='bg-gray-50 min-h-screen py-8'>
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                {/* Header & Controls */}
-                <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100'>
-                    <div>
-                        <h1 className='text-2xl font-bold text-gray-900'>
-                            Analytics & Reports
-                        </h1>
-                        <p className='text-sm text-gray-500 mt-1'>
-                            Showing records for{' '}
-                            <span className='font-semibold text-blue-600'>
-                                {activeTab === 'sales' && filteredLeads.length}
-                                {activeTab === 'finance' &&
-                                    filteredPayments.length}
-                                {activeTab === 'courses' &&
-                                    courseReportData.totalEnrollments}
-                                {activeTab === 'academic' &&
-                                    (academicReportData?.data?.length || 0)}
-                            </span>{' '}
-                            metrics.
-                        </p>
-                    </div>
+                {/* Header Toolbar */}
+                <ReportToolbar
+                    activeTab={activeTab}
+                    timeRange={timeRange}
+                    setTimeRange={setTimeRange}
+                    recordCount={getRecordCount()}
+                    onExport={handleExportCurrentTab}
+                />
 
-                    <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
-                        {activeTab !== 'academic' && (
-                            <select
-                                value={timeRange}
-                                onChange={(e) => setTimeRange(e.target.value)}
-                                className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 bg-gray-50'
-                            >
-                                <option value='30d'>Last 30 Days</option>
-                                <option value='90d'>Last 90 Days</option>
-                                <option value='180d'>Last 6 Months</option>
-                                <option value='1y'>Last Year</option>
-                                <option value='all'>All Time</option>
-                            </select>
-                        )}
-                        <button
-                            onClick={() => {
-                                if (activeTab === 'sales')
-                                    handleExportSalesCSV()
-                                else if (activeTab === 'finance')
-                                    handleExportFinanceCSV()
-                                else if (activeTab === 'courses')
-                                    handleExportCoursesCSV()
-                                else if (activeTab === 'academic')
-                                    handleExportAcademicCSV()
-                            }}
-                            className='flex items-center justify-center py-2 px-4 rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors'
-                        >
-                            <FiDownload className='mr-2' /> Export CSV
-                        </button>
-                    </div>
-                </div>
-
-                {/* Admin Tab Navigation */}
+                {/* Role-Based Tab Navigation */}
                 {(isAdmin || isAccounts) && (
                     <div className='flex gap-4 mb-6 overflow-x-auto pb-2'>
                         <button
@@ -631,338 +587,43 @@ const Reports = () => {
                     </div>
                 )}
 
-                {/* ========================================== */}
-                {/* FINANCIAL REPORTS & A/R VIEW               */}
-                {/* ========================================== */}
+                {/* Domain View Routing */}
                 {activeTab === 'finance' && (
-                    <>
-                        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8'>
-                            <StatCard
-                                title='Expected Pipeline Revenue'
-                                value={financeReportData.expectedRevenue}
-                                icon={FiTarget}
-                                colorClass='bg-purple-50 text-purple-600'
-                            />
-                            <StatCard
-                                title={
-                                    timeRange === 'all'
-                                        ? 'Total Lifetime Collections'
-                                        : 'Period Collections'
-                                }
-                                value={financeReportData.totalRevenue}
-                                icon={FiDollarSign}
-                                colorClass='bg-green-50 text-green-600'
-                            />
-                            <StatCard
-                                title='Total Outstanding Dues'
-                                value={financeReportData.totalOutstanding}
-                                icon={FiAlertCircle}
-                                colorClass='bg-red-50 text-red-600'
-                            />
-                            <StatCard
-                                title="Today's Collections"
-                                value={financeReportData.todayCollected}
-                                icon={FiTrendingUp}
-                                colorClass='bg-blue-50 text-blue-600'
-                            />
-                            <StatCard
-                                title='Ledger Transactions'
-                                value={financeReportData.transactionCount}
-                                icon={FiCreditCard}
-                                colorClass='bg-indigo-50 text-indigo-600'
-                            />
-                        </div>
-
-                        {/* Accounts Receivable Ledger Grid (Refactored Component) */}
-                        <AccountsReceivableLedger
-                            students={filteredARStudents}
-                            searchQuery={arSearchQuery}
-                            onSearchChange={setArSearchQuery}
-                            statusFilter={arStatusFilter}
-                            onStatusFilterChange={setArStatusFilter}
-                            onCollectFeeClick={(studentId) => {
-                                setSelectedStudentForPayment(studentId)
-                                setIsPaymentModalOpen(true)
-                            }}
-                        />
-                    </>
+                    <FinanceReportView
+                        financeReportData={financeReportData}
+                        timeRange={timeRange}
+                        filteredARStudents={filteredARStudents}
+                        arSearchQuery={arSearchQuery}
+                        setArSearchQuery={setArSearchQuery}
+                        arStatusFilter={arStatusFilter}
+                        setArStatusFilter={setArStatusFilter}
+                        onCollectFeeClick={(studentId) => {
+                            setSelectedStudentForPayment(studentId)
+                            setIsPaymentModalOpen(true)
+                        }}
+                    />
                 )}
 
-                {/* ========================================== */}
-                {/* SALES REPORTS VIEW                         */}
-                {/* ========================================== */}
                 {activeTab === 'sales' && (
-                    <>
-                        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
-                            <StatCard
-                                title='Total Closed Won'
-                                value={salesReportData.metrics.wonRevenue}
-                                icon={FiDollarSign}
-                                colorClass='bg-green-50 text-green-600'
-                            />
-                            <StatCard
-                                title='Opportunity Win Rate'
-                                value={salesReportData.metrics.winRate}
-                                icon={FiTarget}
-                                colorClass='bg-blue-50 text-blue-600'
-                            />
-                            <StatCard
-                                title='Average Deal Size'
-                                value={salesReportData.metrics.avgDealSize}
-                                icon={FiAward}
-                                colorClass='bg-purple-50 text-purple-600'
-                            />
-                            <StatCard
-                                title='Sales Cycle (Days)'
-                                value={salesReportData.metrics.avgCycleDays}
-                                icon={FiTrendingUp}
-                                colorClass='bg-orange-50 text-orange-600'
-                            />
-                        </div>
-                        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
-                            <ConversionFunnel
-                                funnelData={salesReportData.funnel}
-                            />
-                            <SourceBreakdown
-                                sources={salesReportData.sources}
-                            />
-                        </div>
-                        <RepPerformanceTable teamData={salesReportData.team} />
-                    </>
+                    <SalesReportView salesReportData={salesReportData} />
                 )}
 
-                {/* ========================================== */}
-                {/* COURSES REPORTS VIEW                       */}
-                {/* ========================================== */}
                 {activeTab === 'courses' && isAdmin && (
-                    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-                        <div className='px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center'>
-                            <h3 className='font-bold text-gray-900 flex items-center gap-2'>
-                                <FiBook className='text-blue-600' /> Course-wise
-                                Enrollment Breakdown
-                            </h3>
-                            <span className='bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full'>
-                                {courseReportData.totalEnrollments} Total
-                                Subject Enrollments
-                            </span>
-                        </div>
-                        <div className='overflow-x-auto'>
-                            <table className='w-full text-left'>
-                                <thead>
-                                    <tr className='text-xs uppercase tracking-wider text-gray-900 font-bold border-b border-gray-100'>
-                                        <th className='px-6 py-4'>
-                                            Course Title
-                                        </th>
-                                        <th className='px-6 py-4 text-right'>
-                                            Students Enrolled
-                                        </th>
-                                        <th className='px-6 py-4 text-right'>
-                                            Expected Course Revenue
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className='divide-y divide-gray-100'>
-                                    {courseReportData.courses.map((c, i) => (
-                                        <tr
-                                            key={i}
-                                            className='hover:bg-gray-50 transition-colors'
-                                        >
-                                            <td className='px-6 py-4 font-semibold text-gray-900'>
-                                                {c.title}
-                                            </td>
-                                            <td className='px-6 py-4 text-right text-gray-700'>
-                                                {c.count}
-                                            </td>
-                                            <td className='px-6 py-4 text-right font-medium text-green-600'>
-                                                ₹
-                                                {c.revenue.toLocaleString(
-                                                    'en-IN',
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <CoursesReportView courseReportData={courseReportData} />
                 )}
 
-                {/* ========================================== */}
-                {/* ACADEMIC COHORT REPORTING VIEW             */}
-                {/* ========================================== */}
                 {activeTab === 'academic' && isAdmin && (
-                    <div className='space-y-6'>
-                        {/* Batch Selector Bar */}
-                        <div className='bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4'>
-                            <span className='text-sm font-medium text-gray-700 flex items-center gap-2'>
-                                <FiLayers className='text-blue-600' /> Select
-                                Cohort / Batch:
-                            </span>
-                            <select
-                                value={selectedBatchId}
-                                onChange={(e) =>
-                                    setSelectedBatchId(e.target.value)
-                                }
-                                className='border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-blue-500 bg-gray-50 max-w-xs w-full'
-                            >
-                                {allBatches.map((b) => (
-                                    <option key={b._id} value={b._id}>
-                                        {b.batchName} ({b.status})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {isAcademicLoading ? (
-                            <div className='text-center py-12 text-gray-500'>
-                                Compiling academic assessment reports...
-                            </div>
-                        ) : !academicReportData ||
-                          academicReportData.data.length === 0 ? (
-                            <div className='text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100 text-gray-500'>
-                                No examination records found for this cohort.
-                            </div>
-                        ) : (
-                            <>
-                                {/* Academic Metric Overview Cards */}
-                                <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-                                    <StatCard
-                                        title='Exams Conducted'
-                                        value={
-                                            academicReportData.totalExamsConducted
-                                        }
-                                        icon={FiAward}
-                                        colorClass='bg-blue-50 text-blue-600'
-                                    />
-                                    <StatCard
-                                        title='Associated Course'
-                                        value={academicReportData.courseTitle}
-                                        icon={FiBook}
-                                        colorClass='bg-purple-50 text-purple-600'
-                                    />
-                                    <StatCard
-                                        title='Cohort Status'
-                                        value='Active Mastery'
-                                        icon={FiCheckCircle}
-                                        colorClass='bg-green-50 text-green-600'
-                                    />
-                                </div>
-
-                                {/* Examination Breakdown Tables */}
-                                <div className='space-y-6'>
-                                    {academicReportData.data.map(
-                                        (exam, idx) => (
-                                            <div
-                                                key={idx}
-                                                className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'
-                                            >
-                                                <div className='px-6 py-4 bg-gray-50 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2'>
-                                                    <div>
-                                                        <h3 className='font-bold text-gray-900 text-lg'>
-                                                            {exam.examTitle}
-                                                        </h3>
-                                                        <p className='text-xs text-gray-500'>
-                                                            Conducted on:{' '}
-                                                            {new Date(
-                                                                exam.examDate,
-                                                            ).toLocaleDateString(
-                                                                'en-IN',
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                    <div className='flex gap-3 text-xs font-semibold'>
-                                                        <span className='bg-blue-50 text-blue-700 px-3 py-1 rounded-full'>
-                                                            Avg:{' '}
-                                                            {exam.averageScore}{' '}
-                                                            / {exam.totalMarks}{' '}
-                                                            (
-                                                            {
-                                                                exam.averagePercentage
-                                                            }
-                                                            %)
-                                                        </span>
-                                                        <span className='bg-green-50 text-green-700 px-3 py-1 rounded-full'>
-                                                            Highest:{' '}
-                                                            {exam.highestScore}
-                                                        </span>
-                                                        <span className='bg-amber-50 text-amber-700 px-3 py-1 rounded-full'>
-                                                            Lowest:{' '}
-                                                            {exam.lowestScore}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className='overflow-x-auto'>
-                                                    <table className='w-full text-left text-sm'>
-                                                        <thead className='text-xs uppercase tracking-wider text-gray-900 font-bold border-b border-gray-100 bg-white'>
-                                                            <tr>
-                                                                <th className='px-6 py-3'>
-                                                                    Student Name
-                                                                </th>
-                                                                <th className='px-6 py-3'>
-                                                                    Score
-                                                                </th>
-                                                                <th className='px-6 py-3'>
-                                                                    Grade
-                                                                </th>
-                                                                <th className='px-6 py-3'>
-                                                                    Faculty
-                                                                    Remarks
-                                                                </th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className='divide-y divide-gray-100'>
-                                                            {exam.records.map(
-                                                                (rec) => (
-                                                                    <tr
-                                                                        key={
-                                                                            rec._id
-                                                                        }
-                                                                        className='hover:bg-gray-50'
-                                                                    >
-                                                                        <td className='px-6 py-3 font-medium text-gray-900'>
-                                                                            {rec
-                                                                                .student
-                                                                                ?.fullName ||
-                                                                                'Unknown'}
-                                                                        </td>
-                                                                        <td className='px-6 py-3 font-bold text-gray-700'>
-                                                                            {
-                                                                                rec.obtainedMarks
-                                                                            }{' '}
-                                                                            <span className='text-gray-400 font-normal text-xs'>
-                                                                                /{' '}
-                                                                                {
-                                                                                    exam.totalMarks
-                                                                                }
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className='px-6 py-3'>
-                                                                            <span className='px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-xs rounded'>
-                                                                                {rec.grade ||
-                                                                                    '-'}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className='px-6 py-3 text-gray-600 italic text-xs'>
-                                                                            {rec.facultyRemarks ||
-                                                                                '-'}
-                                                                        </td>
-                                                                    </tr>
-                                                                ),
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        ),
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    <AcademicReportView
+                        batches={allBatches}
+                        selectedBatchId={selectedBatchId}
+                        onSelectBatchId={setSelectedBatchId}
+                        academicReportData={academicReportData}
+                        isLoading={isAcademicLoading}
+                    />
                 )}
             </div>
 
-            {/* Record Payment Modal Integration */}
+            {/* Payment Modal */}
             <RecordPaymentModal
                 isOpen={isPaymentModalOpen}
                 onClose={() => {
@@ -972,7 +633,7 @@ const Reports = () => {
                 onPaymentSuccess={() => {
                     setIsPaymentModalOpen(false)
                     setSelectedStudentForPayment(null)
-                    fetchAllData() // Automatically refresh ledger when payment is logged
+                    fetchAllData()
                 }}
                 prefillStudentId={selectedStudentForPayment}
             />
