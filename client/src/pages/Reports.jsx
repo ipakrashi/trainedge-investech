@@ -10,9 +10,6 @@ import {
     FiBook,
     FiLayers,
     FiCheckCircle,
-    FiSearch,
-    FiFilter,
-    FiPlus,
     FiAlertCircle,
 } from 'react-icons/fi'
 import api from '../api/axios'
@@ -21,6 +18,7 @@ import ConversionFunnel from '../components/reports/ConversionFunnel'
 import SourceBreakdown from '../components/reports/SourceBreakdown'
 import RepPerformanceTable from '../components/reports/RepPerformanceTable'
 import RecordPaymentModal from '../components/admin/RecordPaymentModal'
+import AccountsReceivableLedger from '../components/reports/AccountsReceivableLedger'
 
 const Reports = () => {
     // 1. Role Initialization
@@ -675,201 +673,18 @@ const Reports = () => {
                             />
                         </div>
 
-                        {/* Accounts Receivable Ledger Grid */}
-                        <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8'>
-                            <div className='p-6 border-b border-gray-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-gray-50'>
-                                <div>
-                                    <h3 className='font-bold text-gray-900 flex items-center gap-2'>
-                                        <FiLayers className='text-blue-600' />{' '}
-                                        Active Accounts Receivable Ledger
-                                    </h3>
-                                    <p className='text-sm text-gray-500'>
-                                        Identify due balances and log new fee
-                                        collections.
-                                    </p>
-                                </div>
-                                <div className='flex gap-3 w-full lg:w-auto'>
-                                    <div className='relative w-full sm:w-auto'>
-                                        <FiSearch className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
-                                        <input
-                                            type='text'
-                                            placeholder='Search student...'
-                                            value={arSearchQuery}
-                                            onChange={(e) =>
-                                                setArSearchQuery(e.target.value)
-                                            }
-                                            className='w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500'
-                                        />
-                                    </div>
-                                    <div className='relative w-full sm:w-auto'>
-                                        <FiFilter className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
-                                        <select
-                                            value={arStatusFilter}
-                                            onChange={(e) =>
-                                                setArStatusFilter(
-                                                    e.target.value,
-                                                )
-                                            }
-                                            className='w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 appearance-none'
-                                        >
-                                            <option value='ALL'>
-                                                All Accounts
-                                            </option>
-                                            <option value='DUE'>
-                                                Balance Due
-                                            </option>
-                                            <option value='PAID'>
-                                                Fully Paid
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setSelectedStudentForPayment(null)
-                                            setIsPaymentModalOpen(true)
-                                        }}
-                                        className='flex items-center justify-center py-2 px-4 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 whitespace-nowrap'
-                                    >
-                                        <FiPlus className='mr-1' /> Collect Fee
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className='overflow-x-auto max-h-[600px]'>
-                                <table className='w-full text-left whitespace-nowrap'>
-                                    <thead className='sticky top-0 bg-white shadow-sm z-10'>
-                                        <tr className='text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200'>
-                                            <th className='px-6 py-4 font-medium'>
-                                                Student Info
-                                            </th>
-                                            <th className='px-6 py-4 font-medium'>
-                                                Enrolled Courses
-                                            </th>
-                                            <th className='px-6 py-4 font-medium text-right'>
-                                                Total Fee
-                                            </th>
-                                            <th className='px-6 py-4 font-medium text-right'>
-                                                Collected
-                                            </th>
-                                            <th className='px-6 py-4 font-medium text-right'>
-                                                Amount Due
-                                            </th>
-                                            <th className='px-6 py-4 font-medium text-center'>
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className='divide-y divide-gray-100'>
-                                        {filteredARStudents.length > 0 ? (
-                                            filteredARStudents.map(
-                                                (student) => {
-                                                    const total =
-                                                        student.totalFee || 0
-                                                    const paid =
-                                                        student.paidAmount || 0
-                                                    const due = total - paid
-
-                                                    return (
-                                                        <tr
-                                                            key={student._id}
-                                                            className='hover:bg-gray-50 text-sm'
-                                                        >
-                                                            <td className='px-6 py-4'>
-                                                                <div className='font-bold text-gray-900'>
-                                                                    {
-                                                                        student.fullName
-                                                                    }
-                                                                </div>
-                                                                <div className='text-gray-500 text-xs'>
-                                                                    {
-                                                                        student.email
-                                                                    }
-                                                                </div>
-                                                                <div className='text-gray-400 text-xs'>
-                                                                    {
-                                                                        student.phone
-                                                                    }
-                                                                </div>
-                                                            </td>
-                                                            <td className='px-6 py-4 text-gray-600 text-xs'>
-                                                                {student.enrolledCourses
-                                                                    ?.map(
-                                                                        (c) =>
-                                                                            c.courseTitle,
-                                                                    )
-                                                                    .join(
-                                                                        ', ',
-                                                                    ) || 'N/A'}
-                                                            </td>
-                                                            <td className='px-6 py-4 text-right font-medium text-gray-900'>
-                                                                ₹
-                                                                {total.toLocaleString(
-                                                                    'en-IN',
-                                                                )}
-                                                            </td>
-                                                            <td className='px-6 py-4 text-right font-medium text-green-600'>
-                                                                ₹
-                                                                {paid.toLocaleString(
-                                                                    'en-IN',
-                                                                )}
-                                                            </td>
-                                                            <td className='px-6 py-4 text-right font-bold'>
-                                                                <span
-                                                                    className={
-                                                                        due > 0
-                                                                            ? 'text-red-600 bg-red-50 px-2 py-1 rounded'
-                                                                            : 'text-gray-400'
-                                                                    }
-                                                                >
-                                                                    ₹
-                                                                    {due.toLocaleString(
-                                                                        'en-IN',
-                                                                    )}
-                                                                </span>
-                                                            </td>
-                                                            <td className='px-6 py-4 text-center'>
-                                                                <button
-                                                                    disabled={
-                                                                        due <= 0
-                                                                    }
-                                                                    onClick={() => {
-                                                                        setSelectedStudentForPayment(
-                                                                            student._id,
-                                                                        )
-                                                                        setIsPaymentModalOpen(
-                                                                            true,
-                                                                        )
-                                                                    }}
-                                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                                                                        due > 0
-                                                                            ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                                    }`}
-                                                                >
-                                                                    {due > 0
-                                                                        ? 'Log Payment'
-                                                                        : 'Cleared'}
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    )
-                                                },
-                                            )
-                                        ) : (
-                                            <tr>
-                                                <td
-                                                    colSpan='6'
-                                                    className='px-6 py-12 text-center text-gray-500'
-                                                >
-                                                    No outstanding accounts
-                                                    match your filters.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        {/* Accounts Receivable Ledger Grid (Refactored Component) */}
+                        <AccountsReceivableLedger
+                            students={filteredARStudents}
+                            searchQuery={arSearchQuery}
+                            onSearchChange={setArSearchQuery}
+                            statusFilter={arStatusFilter}
+                            onStatusFilterChange={setArStatusFilter}
+                            onCollectFeeClick={(studentId) => {
+                                setSelectedStudentForPayment(studentId)
+                                setIsPaymentModalOpen(true)
+                            }}
+                        />
                     </>
                 )}
 
@@ -934,14 +749,14 @@ const Reports = () => {
                         <div className='overflow-x-auto'>
                             <table className='w-full text-left'>
                                 <thead>
-                                    <tr className='text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100'>
-                                        <th className='px-6 py-4 font-medium'>
+                                    <tr className='text-xs uppercase tracking-wider text-gray-900 font-bold border-b border-gray-100'>
+                                        <th className='px-6 py-4'>
                                             Course Title
                                         </th>
-                                        <th className='px-6 py-4 font-medium text-right'>
+                                        <th className='px-6 py-4 text-right'>
                                             Students Enrolled
                                         </th>
-                                        <th className='px-6 py-4 font-medium text-right'>
+                                        <th className='px-6 py-4 text-right'>
                                             Expected Course Revenue
                                         </th>
                                     </tr>
@@ -1078,18 +893,18 @@ const Reports = () => {
                                                 </div>
                                                 <div className='overflow-x-auto'>
                                                     <table className='w-full text-left text-sm'>
-                                                        <thead className='text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100 bg-white'>
+                                                        <thead className='text-xs uppercase tracking-wider text-gray-900 font-bold border-b border-gray-100 bg-white'>
                                                             <tr>
-                                                                <th className='px-6 py-3 font-medium'>
+                                                                <th className='px-6 py-3'>
                                                                     Student Name
                                                                 </th>
-                                                                <th className='px-6 py-3 font-medium'>
+                                                                <th className='px-6 py-3'>
                                                                     Score
                                                                 </th>
-                                                                <th className='px-6 py-3 font-medium'>
+                                                                <th className='px-6 py-3'>
                                                                     Grade
                                                                 </th>
-                                                                <th className='px-6 py-3 font-medium'>
+                                                                <th className='px-6 py-3'>
                                                                     Faculty
                                                                     Remarks
                                                                 </th>
