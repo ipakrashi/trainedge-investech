@@ -70,7 +70,6 @@ const LeadActivityPanel = ({
             const acts = response.data.data || []
             setActivities(acts)
 
-            // UX Polish: Auto-collapse form if they already have timeline history (unless pending a stage move)
             if (acts.length > 0 && !isPendingMove) {
                 setIsFormOpen(false)
             } else {
@@ -85,7 +84,6 @@ const LeadActivityPanel = ({
 
     const fetchDropdownData = async () => {
         try {
-            // FIX: Use allSettled so the 403 on /users doesn't crash the /demos fetch
             const [demoRes, usersRes] = await Promise.allSettled([
                 api.get('/demos/master'),
                 api.get('/users'),
@@ -99,16 +97,36 @@ const LeadActivityPanel = ({
 
             let usersList = []
             if (usersRes.status === 'fulfilled') {
-                usersList =
+                const allUsers =
                     usersRes.value.data.data || usersRes.value.data || []
+
+                // --- NEW FIX: STRICT ROLE FILTERING ---
+                // Only allow these roles to appear in the demo assignment dropdown
+                const eligibleDemoRoles = ['admin', 'sales', 'faculty']
+
+                usersList = allUsers.filter((u) => {
+                    const roleName = (
+                        u.role?.name ||
+                        u.role ||
+                        ''
+                    ).toLowerCase()
+                    return eligibleDemoRoles.includes(roleName)
+                })
             }
 
-            // FIX: Graceful fallback if /users is blocked (e.g., Sales Rep role)
             const userInfoString = localStorage.getItem('userInfo')
             const userInfo = userInfoString ? JSON.parse(userInfoString) : null
 
+            // Fallback (only triggers if API fails entirely)
             if (usersList.length === 0 && userInfo) {
-                usersList = [userInfo] // Populate dropdown with just themselves
+                const myRole = (
+                    userInfo.role?.name ||
+                    userInfo.role ||
+                    ''
+                ).toLowerCase()
+                if (['admin', 'sales', 'faculty'].includes(myRole)) {
+                    usersList = [userInfo]
+                }
             }
 
             setUsers(usersList)
@@ -131,7 +149,6 @@ const LeadActivityPanel = ({
                     leadId: lead._id,
                     demoMasterId,
                     assignedTo: demoAssignee,
-                    // FIX: Convert local browser time to absolute UTC string
                     scheduledDate: new Date(demoDate).toISOString(),
                     summary: summary || 'Demo Scheduled',
                     nextFollowUpDate: nextFollowUpDate || undefined,
@@ -149,7 +166,7 @@ const LeadActivityPanel = ({
             setSummary('')
             setType('NOTE')
             setDemoDate('')
-            setIsFormOpen(false) // Auto-collapse on success
+            setIsFormOpen(false)
             await fetchActivities()
             if (onActivitySuccess) onActivitySuccess()
         } catch (error) {
@@ -578,7 +595,7 @@ const LeadActivityPanel = ({
                 session={rescheduleSession}
                 onClose={() => setRescheduleSession(null)}
                 onSuccess={handleActionSuccess}
-                users={users}
+                users={users} // Passes the newly filtered list down to the modal
             />
         </div>
     )

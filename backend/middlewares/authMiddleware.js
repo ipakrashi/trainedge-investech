@@ -1,3 +1,4 @@
+// server/middleware/authMiddleware.js
 import jwt from 'jsonwebtoken'
 import asyncHandler from 'express-async-handler'
 import userModel from '../models/userModel.js'
@@ -27,7 +28,7 @@ const protect = asyncHandler(async (req, res, next) => {
                 )
             }
 
-            // --- NEW: HEARTBEAT TRACKER ---
+            // --- HEARTBEAT TRACKER ---
             // Update lastLogin on every API call to keep the session alive
             userModel
                 .updateOne({ _id: req.user._id }, { lastLogin: new Date() })
@@ -64,7 +65,7 @@ const admin = (req, res, next) => {
     }
 }
 
-// RestrictTo Middleware
+// RestrictTo Middleware (Enables multi-role access like restrictTo('admin', 'sales', 'faculty'))
 const restrictTo = (...roles) => {
     return (req, res, next) => {
         const userRoleName = req.user?.role?.name?.toLowerCase()

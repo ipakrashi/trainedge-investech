@@ -24,7 +24,7 @@ router.use(protect)
 // --- Admin-Only Collection Routes ---
 router
     .route('/')
-    .get(restrictTo('admin'), getUsers)
+    .get(protect, restrictTo('admin', 'sales', 'faculty'), getUsers)
     .post(restrictTo('admin'), addUser)
 
 // Static sub-resource: must precede parameterized (/:id) routes
