@@ -13,16 +13,16 @@ const RepPerformanceTable = ({ teamData }) => {
             <div className='overflow-x-auto'>
                 <table className='w-full text-left border-collapse'>
                     <thead>
-                        <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider'>
-                            <th className='px-6 py-3 font-medium'>Sales Rep</th>
-                            <th className='px-6 py-3 font-medium'>
+                        <tr className='bg-gray-50 text-gray-900 text-xs uppercase tracking-wider'>
+                            <th className='px-6 py-3 font-bold'>Sales Rep</th>
+                            <th className='px-6 py-3 font-bold'>
                                 Assigned Leads
                             </th>
-                            <th className='px-6 py-3 font-medium'>
+                            <th className='px-6 py-3 font-bold'>
                                 Deals Closed
                             </th>
-                            <th className='px-6 py-3 font-medium'>Win Rate</th>
-                            <th className='px-6 py-3 text-right font-medium'>
+                            <th className='px-6 py-3 font-bold'>Win Rate</th>
+                            <th className='px-6 py-3 text-right font-bold'>
                                 Closed Revenue
                             </th>
                         </tr>

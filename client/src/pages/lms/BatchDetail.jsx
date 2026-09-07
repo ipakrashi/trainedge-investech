@@ -1,3 +1,4 @@
+// src/components/batches/BatchDetail.jsx
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
@@ -536,20 +537,19 @@ const BatchDetail = () => {
                         ) : (
                             <div className='overflow-x-auto border border-gray-200 rounded-lg'>
                                 <table className='w-full text-left text-sm'>
-                                    <thead className='bg-gray-50 text-gray-600 border-b border-gray-200'>
-                                        <tr>
-                                            <th className='px-4 py-3 font-medium'>
+                                    {/* UPDATED: text-gray-900 font-bold applied to tr */}
+                                    <thead className='bg-gray-50 border-b border-gray-200'>
+                                        <tr className='text-gray-900 font-bold uppercase'>
+                                            <th className='px-4 py-3'>
                                                 Student Name
                                             </th>
-                                            <th className='px-4 py-3 font-medium'>
+                                            <th className='px-4 py-3'>
                                                 Email Address
                                             </th>
-                                            <th className='px-4 py-3 font-medium'>
+                                            <th className='px-4 py-3'>
                                                 Phone Number
                                             </th>
-                                            <th className='px-4 py-3 font-medium'>
-                                                State
-                                            </th>
+                                            <th className='px-4 py-3'>State</th>
                                         </tr>
                                     </thead>
                                     <tbody className='divide-y divide-gray-100'>
@@ -669,18 +669,19 @@ const BatchDetail = () => {
 
                                 <div className='overflow-x-auto border border-gray-200 rounded-lg'>
                                     <table className='w-full text-left text-sm'>
-                                        <thead className='bg-gray-50 text-gray-600 border-b border-gray-200'>
-                                            <tr>
-                                                <th className='px-4 py-3 font-medium'>
+                                        {/* UPDATED: text-gray-900 font-bold applied to tr */}
+                                        <thead className='bg-gray-50 border-b border-gray-200'>
+                                            <tr className='text-gray-900 font-bold'>
+                                                <th className='px-4 py-3'>
                                                     Student Name
                                                 </th>
-                                                <th className='px-4 py-3 font-medium w-32'>
+                                                <th className='px-4 py-3 w-32'>
                                                     Marks Obtained
                                                 </th>
-                                                <th className='px-4 py-3 font-medium w-24'>
+                                                <th className='px-4 py-3 w-24'>
                                                     Grade
                                                 </th>
-                                                <th className='px-4 py-3 font-medium'>
+                                                <th className='px-4 py-3'>
                                                     Faculty Remarks
                                                 </th>
                                             </tr>
@@ -830,18 +831,19 @@ const BatchDetail = () => {
                                         </div>
                                         <div className='overflow-x-auto'>
                                             <table className='w-full text-left text-sm'>
-                                                <thead className='bg-white text-gray-500 border-b border-gray-100'>
-                                                    <tr>
-                                                        <th className='px-4 py-3 font-medium'>
+                                                {/* UPDATED: text-gray-900 font-bold applied to tr */}
+                                                <thead className='bg-white border-b border-gray-100'>
+                                                    <tr className='text-gray-900 font-bold'>
+                                                        <th className='px-4 py-3'>
                                                             Student Name
                                                         </th>
-                                                        <th className='px-4 py-3 font-medium'>
+                                                        <th className='px-4 py-3'>
                                                             Score
                                                         </th>
-                                                        <th className='px-4 py-3 font-medium'>
+                                                        <th className='px-4 py-3'>
                                                             Grade
                                                         </th>
-                                                        <th className='px-4 py-3 font-medium'>
+                                                        <th className='px-4 py-3'>
                                                             Remarks
                                                         </th>
                                                     </tr>

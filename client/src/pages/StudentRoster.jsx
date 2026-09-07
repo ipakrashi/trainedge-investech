@@ -1,3 +1,4 @@
+// src/components/students/StudentRoster.jsx
 import { useState, useEffect, useMemo } from 'react'
 import api from '../api/axios'
 import {
@@ -343,9 +344,10 @@ const StudentRoster = () => {
                     <div className='overflow-x-auto'>
                         <table className='w-full text-left border-collapse'>
                             <thead>
-                                <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100'>
+                                {/* UPDATED: text-gray-900, font-bold added, font-medium removed from children */}
+                                <tr className='bg-gray-50 text-gray-900 font-bold text-xs uppercase tracking-wider border-b border-gray-100'>
                                     {isAdmin && (
-                                        <th className='px-6 py-4 font-medium w-12'>
+                                        <th className='px-6 py-4 w-12'>
                                             <input
                                                 type='checkbox'
                                                 className='rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer'
@@ -358,27 +360,17 @@ const StudentRoster = () => {
                                             />
                                         </th>
                                     )}
-                                    <th className='px-6 py-4 font-medium'>
-                                        Student
-                                    </th>
-                                    <th className='px-6 py-4 font-medium'>
-                                        Contact
-                                    </th>
-                                    <th className='px-6 py-4 font-medium'>
-                                        Courses
-                                    </th>
-                                    <th className='px-6 py-4 font-medium'>
+                                    <th className='px-6 py-4'>Student</th>
+                                    <th className='px-6 py-4'>Contact</th>
+                                    <th className='px-6 py-4'>Courses</th>
+                                    <th className='px-6 py-4'>
                                         Cohort / Batch
                                     </th>
                                     {isAdmin && (
-                                        <th className='px-6 py-4 font-medium'>
-                                            Faculty
-                                        </th>
+                                        <th className='px-6 py-4'>Faculty</th>
                                     )}
-                                    <th className='px-6 py-4 font-medium'>
-                                        State
-                                    </th>
-                                    <th className='px-6 py-4 font-medium text-right'>
+                                    <th className='px-6 py-4'>State</th>
+                                    <th className='px-6 py-4 text-right'>
                                         Actions
                                     </th>
                                 </tr>
