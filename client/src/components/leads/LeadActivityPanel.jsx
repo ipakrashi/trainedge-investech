@@ -85,17 +85,33 @@ const LeadActivityPanel = ({
 
     const fetchDropdownData = async () => {
         try {
-            const [demoRes, usersRes] = await Promise.all([
+            // FIX: Use allSettled so the 403 on /users doesn't crash the /demos fetch
+            const [demoRes, usersRes] = await Promise.allSettled([
                 api.get('/demos/master'),
                 api.get('/users'),
             ])
-            const dms = demoRes.data.data || []
-            setDemoMasters(dms)
-            if (dms.length > 0) setDemoMasterId(dms[0]._id)
 
-            const usersList = usersRes.data.data || usersRes.data || []
+            if (demoRes.status === 'fulfilled') {
+                const dms = demoRes.value.data.data || []
+                setDemoMasters(dms)
+                if (dms.length > 0) setDemoMasterId(dms[0]._id)
+            }
+
+            let usersList = []
+            if (usersRes.status === 'fulfilled') {
+                usersList =
+                    usersRes.value.data.data || usersRes.value.data || []
+            }
+
+            // FIX: Graceful fallback if /users is blocked (e.g., Sales Rep role)
+            const userInfoString = localStorage.getItem('userInfo')
+            const userInfo = userInfoString ? JSON.parse(userInfoString) : null
+
+            if (usersList.length === 0 && userInfo) {
+                usersList = [userInfo] // Populate dropdown with just themselves
+            }
+
             setUsers(usersList)
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'))
             if (userInfo) setDemoAssignee(userInfo._id)
         } catch (error) {
             console.error('Failed to fetch dropdown data', error)
@@ -115,7 +131,8 @@ const LeadActivityPanel = ({
                     leadId: lead._id,
                     demoMasterId,
                     assignedTo: demoAssignee,
-                    scheduledDate: demoDate,
+                    // FIX: Convert local browser time to absolute UTC string
+                    scheduledDate: new Date(demoDate).toISOString(),
                     summary: summary || 'Demo Scheduled',
                     nextFollowUpDate: nextFollowUpDate || undefined,
                 })
@@ -379,7 +396,6 @@ const LeadActivityPanel = ({
                 </div>
 
                 {/* 100vh Timeline Section */}
-                {/* UPDATED: Reduced padding from px-6 to px-4 for more horizontal space */}
                 <div className='flex-1 overflow-y-auto px-4 py-6 bg-gray-50 min-h-0'>
                     {isLoading ? (
                         <div className='text-center text-sm text-gray-500 mt-10'>
@@ -395,7 +411,6 @@ const LeadActivityPanel = ({
                                 const session = activity.details?.demoSessionId
 
                                 return (
-                                    /* UPDATED: Changed gap-4 to gap-2.5 to pull card closer to icon */
                                     <div
                                         key={activity._id}
                                         className='relative flex items-start gap-2.5'
@@ -403,7 +418,6 @@ const LeadActivityPanel = ({
                                         <div className='flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 bg-white shadow-sm shrink-0 z-10'>
                                             {getActivityIcon(activity.type)}
                                         </div>
-                                        {/* UPDATED: Changed padding from p-4 to p-3.5 to loosen internal space */}
                                         <div className='flex-1 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100'>
                                             <div className='flex justify-between items-start mb-1'>
                                                 <span className='font-semibold text-gray-900 text-sm'>

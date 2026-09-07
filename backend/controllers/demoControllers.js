@@ -144,21 +144,33 @@ export const rescheduleDemo = asyncHandler(async (req, res) => {
         throw new Error('Demo Session not found')
     }
 
-    const oldDate = new Date(session.scheduledDate)
-    session.scheduledDate = new Date(newDate)
+    const oldDateObj = new Date(session.scheduledDate)
+    const newDateObj = new Date(newDate) // Correct absolute time from frontend
+
+    session.scheduledDate = newDateObj
     if (assignedTo) session.assignedTo = assignedTo
     await session.save()
 
-    // Automatically log the reschedule reason to the Lead's timeline
+    // FIX: Enforce IST specifically for the text log regardless of server location
+    const oldDateStr = oldDateObj.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        dateStyle: 'short',
+        timeStyle: 'short',
+    })
+    const newDateStr = newDateObj.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        dateStyle: 'short',
+        timeStyle: 'short',
+    })
+
     await leadActivityModel.create({
         lead: session.lead,
         performedBy: req.user._id,
         type: 'NOTE',
-        summary: `🗓️ Demo Rescheduled from ${oldDate.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })} to ${session.scheduledDate.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}. \nReason: ${reason}`,
+        summary: `🗓️ Demo Rescheduled from ${oldDateStr} to ${newDateStr}. \nReason: ${reason}`,
         details: { demoSessionId: session._id },
     })
 
-    // Auto-update the lead's next follow-up date to match the new demo date
     await leadModel.findByIdAndUpdate(session.lead, {
         nextFollowUpDate: session.scheduledDate,
     })

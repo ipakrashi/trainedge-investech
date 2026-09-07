@@ -1,7 +1,7 @@
 // src/components/demos/DemoRescheduleModal.jsx
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
-import { FiX, FiCalendar, FiClock } from 'react-icons/fi'
+import { FiX, FiCalendar } from 'react-icons/fi'
 
 const DemoRescheduleModal = ({
     isOpen,
@@ -32,7 +32,8 @@ const DemoRescheduleModal = ({
         try {
             setIsSubmitting(true)
             await api.put(`/demos/schedule/${session._id}/reschedule`, {
-                newDate,
+                // FIX: Convert local browser time to an absolute UTC string
+                newDate: new Date(newDate).toISOString(),
                 assignedTo: assignee,
                 reason,
             })
