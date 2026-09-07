@@ -59,20 +59,18 @@ const LeadsTable = ({
             <div className='overflow-auto flex-1'>
                 <table className='w-full text-left border-collapse'>
                     <thead className='sticky top-0 z-10 bg-gray-50 shadow-sm'>
-                        <tr className='text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100'>
-                            <th className='px-6 py-4 font-medium'>Lead Info</th>
-                            <th className='px-6 py-4 font-medium'>Status</th>
-                            <th className='px-6 py-4 font-medium'>Source</th>
-                            <th className='px-6 py-4 font-medium'>
-                                Lead Owner
-                            </th>
-                            <th className='px-6 py-4 font-medium'>
+                        <tr className='text-gray-900 text-xs uppercase tracking-wider border-b border-gray-100'>
+                            <th className='px-6 py-4 font-bold'>Lead Info</th>
+                            <th className='px-6 py-4 font-bold'>Status</th>
+                            <th className='px-6 py-4 font-bold'>Source</th>
+                            <th className='px-6 py-4 font-bold'>Lead Owner</th>
+                            <th className='px-6 py-4 font-bold'>
                                 Next Follow-Up
                             </th>
-                            <th className='px-6 py-4 font-medium'>
+                            <th className='px-6 py-4 font-bold'>
                                 Estimated Value
                             </th>
-                            <th className='px-6 py-4 text-right font-medium'>
+                            <th className='px-6 py-4 text-right font-bold'>
                                 Actions
                             </th>
                         </tr>

@@ -16,11 +16,11 @@ const RecentLeadsTable = ({ leads }) => {
             <div className='overflow-x-auto'>
                 <table className='w-full text-left border-collapse'>
                     <thead>
-                        <tr className='bg-gray-50 text-gray-500 text-xs uppercase tracking-wider'>
-                            <th className='px-6 py-3 font-medium'>Full Name</th>
-                            <th className='px-6 py-3 font-medium'>Status</th>
-                            <th className='px-6 py-3 font-medium'>Contact</th>
-                            <th className='px-6 py-3 text-right font-medium'>
+                        <tr className='bg-gray-50 text-gray-900 text-xs uppercase tracking-wider font-bold'>
+                            <th className='px-6 py-3 font-bold'>Full Name</th>
+                            <th className='px-6 py-3 font-bold'>Status</th>
+                            <th className='px-6 py-3 font-bold'>Contact</th>
+                            <th className='px-6 py-3 text-right font-bold'>
                                 Value
                             </th>
                         </tr>
