@@ -74,6 +74,9 @@ const Dashboard = () => {
             transactionCount = 0,
         } = dashboardData || {}
 
+        // NEW: Calculate the Total Booked Revenue Pipeline
+        const totalRevenuePipeline = totalCollected + totalOutstanding
+
         return (
             <div className='bg-gray-50 min-h-screen py-8'>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -87,18 +90,19 @@ const Dashboard = () => {
                         </p>
                     </div>
 
-                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+                    {/* UPDATED: 5-column grid on extra-large screens */}
+                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8'>
+                        <StatCard
+                            title='Total Revenue Pipeline'
+                            value={`₹${totalRevenuePipeline.toLocaleString('en-IN')}`}
+                            icon={FiTarget}
+                            colorClass='bg-indigo-50 text-indigo-600'
+                        />
                         <StatCard
                             title='Total Lifetime Collections'
                             value={`₹${totalCollected.toLocaleString('en-IN')}`}
                             icon={FiDollarSign}
                             colorClass='bg-green-50 text-green-600'
-                        />
-                        <StatCard
-                            title="Today's Collections"
-                            value={`₹${todayCollected.toLocaleString('en-IN')}`}
-                            icon={FiTrendingUp}
-                            colorClass='bg-blue-50 text-blue-600'
                         />
                         <StatCard
                             title='Total Outstanding Dues'
@@ -107,7 +111,13 @@ const Dashboard = () => {
                             colorClass='bg-red-50 text-red-600'
                         />
                         <StatCard
-                            title='Total Ledger Transactions'
+                            title="Today's Collections"
+                            value={`₹${todayCollected.toLocaleString('en-IN')}`}
+                            icon={FiTrendingUp}
+                            colorClass='bg-blue-50 text-blue-600'
+                        />
+                        <StatCard
+                            title='Ledger Transactions'
                             value={transactionCount}
                             icon={FiCreditCard}
                             colorClass='bg-purple-50 text-purple-600'
@@ -174,7 +184,7 @@ const Dashboard = () => {
                                                 (b.paidAmount || 0) -
                                                 ((a.totalFee || 0) -
                                                     (a.paidAmount || 0)),
-                                        ) // Sort by largest due first
+                                        )
                                         .map((student) => {
                                             const dueAmount =
                                                 (student.totalFee || 0) -
@@ -271,7 +281,7 @@ const Dashboard = () => {
                     onPaymentSuccess={() => {
                         setIsPaymentModalOpen(false)
                         setSelectedStudentForPayment(null)
-                        fetchAnalytics() // Re-fetches dashboard KPIs & updates student table
+                        fetchAnalytics()
                     }}
                     prefillStudentId={selectedStudentForPayment}
                 />
