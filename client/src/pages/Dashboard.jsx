@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
     FiUsers,
     FiTrendingUp,
@@ -10,6 +10,7 @@ import {
     FiTarget,
     FiLayers,
     FiAlertCircle,
+    FiPlus,
 } from 'react-icons/fi'
 import api from '../api/axios'
 import StatCard from '../components/common/StatCard'
@@ -18,26 +19,41 @@ import FollowUpList from '../components/dashboard/FollowUpList'
 import ConversionFunnel from '../components/dashboard/ConversionFunnel'
 import SourceBreakdown from '../components/reports/SourceBreakdown'
 import RepPerformanceTable from '../components/reports/RepPerformanceTable'
+import RecordPaymentModal from '../components/admin/RecordPaymentModal'
 
 const Dashboard = () => {
     const [dashboardData, setDashboardData] = useState(null)
     const [userRole, setUserRole] = useState('')
     const [isLoading, setIsLoading] = useState(true)
 
-    useEffect(() => {
-        const fetchAnalytics = async () => {
-            try {
-                const res = await api.get('/analytics')
-                setDashboardData(res.data.data)
-                setUserRole((res.data.role || '').toLowerCase())
-            } catch (error) {
-                console.error('Failed to load dashboard metrics:', error)
-            } finally {
-                setIsLoading(false)
+    // Revenue Collection States
+    const [students, setStudents] = useState([])
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+    const [selectedStudentForPayment, setSelectedStudentForPayment] =
+        useState(null)
+
+    const fetchAnalytics = useCallback(async () => {
+        try {
+            const res = await api.get('/analytics')
+            const role = (res.data.role || '').toLowerCase()
+            setDashboardData(res.data.data)
+            setUserRole(role)
+
+            // Fetch students globally if role requires the outstanding dues table
+            if (role === 'accounts' || role === 'admin') {
+                const stdRes = await api.get('/students?limit=5000')
+                setStudents(stdRes.data?.data || [])
             }
+        } catch (error) {
+            console.error('Failed to load dashboard metrics:', error)
+        } finally {
+            setIsLoading(false)
         }
-        fetchAnalytics()
     }, [])
+
+    useEffect(() => {
+        fetchAnalytics()
+    }, [fetchAnalytics])
 
     if (isLoading) {
         return (
@@ -57,6 +73,7 @@ const Dashboard = () => {
             totalOutstanding = 0,
             transactionCount = 0,
         } = dashboardData || {}
+
         return (
             <div className='bg-gray-50 min-h-screen py-8'>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -97,28 +114,167 @@ const Dashboard = () => {
                         />
                     </div>
 
-                    <div className='grid grid-cols-1 gap-6 mb-8'>
-                        <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between'>
+                    {/* Outstanding Dues Action Table */}
+                    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8'>
+                        <div className='px-6 py-4 border-b border-gray-100 bg-red-50/30 flex justify-between items-center'>
                             <div>
-                                <p className='text-xs font-semibold text-gray-400 uppercase tracking-wider'>
-                                    Operations
-                                </p>
-                                <h3 className='text-lg font-bold text-gray-900 mt-1'>
-                                    Fee Payment Ledger
+                                <h3 className='text-lg font-bold text-gray-900'>
+                                    Action Required: Outstanding Dues
                                 </h3>
-                                <p className='text-sm text-gray-500 mt-1'>
-                                    Record and inspect student fee transactions.
+                                <p className='text-xs text-gray-500'>
+                                    Students with pending fee balances requiring
+                                    collection.
                                 </p>
                             </div>
                             <a
                                 href='/admin/payments'
-                                className='px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors'
+                                className='text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors'
                             >
-                                Open Ledger
+                                View Full Ledger &rarr;
                             </a>
+                        </div>
+
+                        <div className='overflow-x-auto'>
+                            <table className='w-full text-sm text-left text-gray-600'>
+                                <thead className='text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100'>
+                                    <tr>
+                                        <th className='px-6 py-3 font-semibold'>
+                                            Student Name
+                                        </th>
+                                        <th className='px-6 py-3 font-semibold'>
+                                            Contact
+                                        </th>
+                                        <th className='px-6 py-3 font-semibold text-right'>
+                                            Total Fee
+                                        </th>
+                                        <th className='px-6 py-3 font-semibold text-right'>
+                                            Paid
+                                        </th>
+                                        <th className='px-6 py-3 font-bold text-red-600 text-right'>
+                                            Amount Due
+                                        </th>
+                                        <th className='px-6 py-3 font-semibold text-center'>
+                                            Action
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className='divide-y divide-gray-100'>
+                                    {students
+                                        .filter(
+                                            (s) =>
+                                                s.status !==
+                                                    'PENDING_ASSIGNMENT' &&
+                                                (s.totalFee || 0) -
+                                                    (s.paidAmount || 0) >
+                                                    0,
+                                        )
+                                        .sort(
+                                            (a, b) =>
+                                                (b.totalFee || 0) -
+                                                (b.paidAmount || 0) -
+                                                ((a.totalFee || 0) -
+                                                    (a.paidAmount || 0)),
+                                        ) // Sort by largest due first
+                                        .map((student) => {
+                                            const dueAmount =
+                                                (student.totalFee || 0) -
+                                                (student.paidAmount || 0)
+
+                                            return (
+                                                <tr
+                                                    key={student._id}
+                                                    className='hover:bg-gray-50 transition-colors'
+                                                >
+                                                    <td className='px-6 py-4 font-medium text-gray-900'>
+                                                        {student.fullName}
+                                                    </td>
+                                                    <td className='px-6 py-4 text-xs'>
+                                                        {student.phone}
+                                                        <br />
+                                                        <span className='text-gray-400'>
+                                                            {student.email}
+                                                        </span>
+                                                    </td>
+                                                    <td className='px-6 py-4 text-right'>
+                                                        ₹
+                                                        {(
+                                                            student.totalFee ||
+                                                            0
+                                                        ).toLocaleString(
+                                                            'en-IN',
+                                                        )}
+                                                    </td>
+                                                    <td className='px-6 py-4 text-right text-green-600'>
+                                                        ₹
+                                                        {(
+                                                            student.paidAmount ||
+                                                            0
+                                                        ).toLocaleString(
+                                                            'en-IN',
+                                                        )}
+                                                    </td>
+                                                    <td className='px-6 py-4 text-right font-bold text-red-600 bg-red-50/30'>
+                                                        ₹
+                                                        {dueAmount.toLocaleString(
+                                                            'en-IN',
+                                                        )}
+                                                    </td>
+                                                    <td className='px-6 py-4 text-center'>
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedStudentForPayment(
+                                                                    student._id,
+                                                                )
+                                                                setIsPaymentModalOpen(
+                                                                    true,
+                                                                )
+                                                            }}
+                                                            className='px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors inline-flex items-center gap-1'
+                                                        >
+                                                            <FiPlus /> Collect
+                                                            Fee
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    {students.filter(
+                                        (s) =>
+                                            s.status !== 'PENDING_ASSIGNMENT' &&
+                                            (s.totalFee || 0) -
+                                                (s.paidAmount || 0) >
+                                                0,
+                                    ).length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan='6'
+                                                className='px-6 py-8 text-center text-gray-500 italic'
+                                            >
+                                                All student accounts are
+                                                currently fully paid.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
+
+                {/* Shared Payment Modal Component */}
+                <RecordPaymentModal
+                    isOpen={isPaymentModalOpen}
+                    onClose={() => {
+                        setIsPaymentModalOpen(false)
+                        setSelectedStudentForPayment(null)
+                    }}
+                    onPaymentSuccess={() => {
+                        setIsPaymentModalOpen(false)
+                        setSelectedStudentForPayment(null)
+                        fetchAnalytics() // Re-fetches dashboard KPIs & updates student table
+                    }}
+                    prefillStudentId={selectedStudentForPayment}
+                />
             </div>
         )
     }
@@ -215,7 +371,7 @@ const Dashboard = () => {
                                                                 key={b._id}
                                                                 className='inline-flex items-center bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-xs font-medium w-fit'
                                                             >
-                                                                <FiLayers className='mr-1' />
+                                                                <FiLayers className='mr-1' />{' '}
                                                                 {b.batchName}
                                                             </span>
                                                         ))
@@ -260,6 +416,7 @@ const Dashboard = () => {
             recentLeads,
             pendingFollowUps,
         } = dashboardData || {}
+
         return (
             <div className='bg-gray-50 min-h-screen py-8'>
                 <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
