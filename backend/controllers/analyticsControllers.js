@@ -6,6 +6,23 @@ import paymentModel from '../models/paymentModel.js'
 import batchModel from '../models/batchModel.js'
 import asyncHandler from 'express-async-handler'
 
+// --- TIMEZONE HELPERS (IST / ASIA/KOLKATA: UTC +5:30) ---
+const getStartOfTodayIST = () => {
+    const now = new Date()
+    const istOffsetMs = 5.5 * 60 * 60 * 1000 // +5:30 in milliseconds
+    const istDate = new Date(now.getTime() + istOffsetMs)
+    istDate.setUTCHours(0, 0, 0, 0)
+    return new Date(istDate.getTime() - istOffsetMs)
+}
+
+const getEndOfTodayIST = () => {
+    const now = new Date()
+    const istOffsetMs = 5.5 * 60 * 60 * 1000 // +5:30 in milliseconds
+    const istDate = new Date(now.getTime() + istOffsetMs)
+    istDate.setUTCHours(23, 59, 59, 999)
+    return new Date(istDate.getTime() - istOffsetMs)
+}
+
 // @desc    Get role-scoped analytics dashboard data
 // @route   GET /api/analytics
 // @access  Private
@@ -18,13 +35,11 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
 
     // 1. FACULTY ANALYTICS VIEW - Purely Academic (No Financials)
     if (isFaculty) {
-        // Fetch students and convert to plain JS objects (.lean()) so we can inject batch data
         const students = await studentModel
             .find({ assignedFaculty: req.user._id })
             .populate('enrolledCourses', 'courseTitle fee')
             .lean()
 
-        // Fetch all batches assigned to this faculty member
         const batches = await batchModel.find({ faculty: req.user._id }).lean()
 
         const totalStudents = students.length
@@ -32,7 +47,6 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
             (s) => s.status === 'ACTIVE',
         ).length
 
-        // Map the respective cohorts/batches into each student's object
         const studentsWithBatches = students.map((student) => {
             const studentBatches = batches.filter((b) =>
                 b.students?.some(
@@ -61,10 +75,13 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
         const payments = await paymentModel.find()
         const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0)
 
-        const startOfDay = new Date()
-        startOfDay.setHours(0, 0, 0, 0)
+        // Anchored to IST Midnight
+        const startOfTodayIST = getStartOfTodayIST()
         const todayCollected = payments
-            .filter((p) => new Date(p.paymentDate) >= startOfDay)
+            .filter(
+                (p) =>
+                    new Date(p.paymentDate || p.createdAt) >= startOfTodayIST,
+            )
             .reduce((sum, p) => sum + p.amount, 0)
 
         // Calculate Total Outstanding Dues for valid students
@@ -114,12 +131,12 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
             (l) => new Date(l.createdAt) > oneWeekAgo,
         ).length
 
-        const endOfToday = new Date()
-        endOfToday.setHours(23, 59, 59, 999)
+        // Anchored to IST End of Day
+        const endOfTodayIST = getEndOfTodayIST()
         const pendingFollowUps = leads.filter((l) => {
             if (!l.nextFollowUpDate) return false
             if (['LOST', 'JUNK', 'ENROLLED'].includes(l.status)) return false
-            return new Date(l.nextFollowUpDate) <= endOfToday
+            return new Date(l.nextFollowUpDate) <= endOfTodayIST
         })
 
         return res.status(200).json({
@@ -240,10 +257,14 @@ export const getAnalyticsData = asyncHandler(async (req, res) => {
         // -- Finance Aggregation --
         const payments = await paymentModel.find()
         const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0)
-        const startOfDay = new Date()
-        startOfDay.setHours(0, 0, 0, 0)
+
+        // Anchored to IST Midnight
+        const startOfTodayIST = getStartOfTodayIST()
         const todayCollected = payments
-            .filter((p) => new Date(p.paymentDate) >= startOfDay)
+            .filter(
+                (p) =>
+                    new Date(p.paymentDate || p.createdAt) >= startOfTodayIST,
+            )
             .reduce((sum, p) => sum + p.amount, 0)
 
         // -- Academic & Outstanding Aggregation --
