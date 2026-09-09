@@ -113,13 +113,25 @@ const Dashboard = () => {
                             colorClass='bg-red-50 text-red-600'
                         />
                         <StatCard
-                            title="Today's Collections"
+                            title={
+                                <>
+                                    Today's
+                                    <br />
+                                    Collections
+                                </>
+                            }
                             value={`₹${todayCollected.toLocaleString('en-IN')}`}
                             icon={FiTrendingUp}
                             colorClass='bg-blue-50 text-blue-600'
                         />
                         <StatCard
-                            title='Ledger Transactions'
+                            title={
+                                <>
+                                    Ledger
+                                    <br />
+                                    Transactions
+                                </>
+                            }
                             value={transactionCount}
                             icon={FiCreditCard}
                             colorClass='bg-purple-50 text-purple-600'
@@ -583,7 +595,13 @@ const Dashboard = () => {
                                 colorClass='bg-green-50 text-green-600'
                             />
                             <StatCard
-                                title="Today's Collections"
+                                title={
+                                    <>
+                                        Today's
+                                        <br />
+                                        Collections
+                                    </>
+                                }
                                 value={`₹${(financeStats?.todayCollected || 0).toLocaleString('en-IN')}`}
                                 icon={FiTrendingUp}
                                 colorClass='bg-blue-50 text-blue-600'
@@ -601,7 +619,13 @@ const Dashboard = () => {
                                 colorClass='bg-purple-50 text-purple-600'
                             />
                             <StatCard
-                                title='Ledger Transactions'
+                                title={
+                                    <>
+                                        Ledger
+                                        <br />
+                                        Transactions
+                                    </>
+                                }
                                 value={financeStats?.transactionCount || 0}
                                 icon={FiCreditCard}
                                 colorClass='bg-indigo-50 text-indigo-600'
