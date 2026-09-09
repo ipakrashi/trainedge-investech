@@ -1,6 +1,7 @@
+// src/components/dashboard/FollowUpList.jsx
 import { FiClock, FiPhoneCall } from 'react-icons/fi'
 
-const FollowUpList = ({ tasks }) => {
+const FollowUpList = ({ tasks, onSelectLead }) => {
     return (
         <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
             <h3 className='font-bold text-gray-900 mb-4 flex items-center gap-2'>
@@ -10,10 +11,11 @@ const FollowUpList = ({ tasks }) => {
                 {tasks?.map((task) => (
                     <div
                         key={task._id}
-                        className='p-3 bg-orange-50/50 border border-orange-100 rounded-lg flex justify-between items-center'
+                        onClick={() => onSelectLead && onSelectLead(task)}
+                        className='p-3 bg-orange-50/50 border border-orange-100 rounded-lg flex justify-between items-center cursor-pointer hover:bg-orange-100/70 hover:border-orange-200 transition-colors group'
                     >
                         <div>
-                            <h4 className='font-semibold text-sm text-gray-800'>
+                            <h4 className='font-semibold text-sm text-gray-800 group-hover:text-blue-600 transition-colors'>
                                 {task.fullName}
                             </h4>
                             <p className='text-xs text-gray-500 flex items-center gap-1 mt-0.5'>

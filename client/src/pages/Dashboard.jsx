@@ -20,17 +20,22 @@ import ConversionFunnel from '../components/dashboard/ConversionFunnel'
 import SourceBreakdown from '../components/reports/SourceBreakdown'
 import RepPerformanceTable from '../components/reports/RepPerformanceTable'
 import RecordPaymentModal from '../components/admin/RecordPaymentModal'
+import LeadActivityPanel from '../components/leads/LeadActivityPanel'
 
 const Dashboard = () => {
     const [dashboardData, setDashboardData] = useState(null)
     const [userRole, setUserRole] = useState('')
     const [isLoading, setIsLoading] = useState(true)
 
-    // Revenue Collection States
+    // Finance/Accounts States
     const [students, setStudents] = useState([])
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
     const [selectedStudentForPayment, setSelectedStudentForPayment] =
         useState(null)
+
+    // Sales Lead Activity States
+    const [selectedLeadForActivity, setSelectedLeadForActivity] = useState(null)
+    const [isActivityPanelOpen, setIsActivityPanelOpen] = useState(false)
 
     const fetchAnalytics = useCallback(async () => {
         try {
@@ -39,7 +44,6 @@ const Dashboard = () => {
             setDashboardData(res.data.data)
             setUserRole(role)
 
-            // Fetch students globally if role requires the outstanding dues table
             if (role === 'accounts' || role === 'admin') {
                 const stdRes = await api.get('/students?limit=5000')
                 setStudents(stdRes.data?.data || [])
@@ -74,7 +78,6 @@ const Dashboard = () => {
             transactionCount = 0,
         } = dashboardData || {}
 
-        // NEW: Calculate the Total Booked Revenue Pipeline
         const totalRevenuePipeline = totalCollected + totalOutstanding
 
         return (
@@ -90,7 +93,6 @@ const Dashboard = () => {
                         </p>
                     </div>
 
-                    {/* UPDATED: 5-column grid on extra-large screens */}
                     <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8'>
                         <StatCard
                             title='Total Revenue Pipeline'
@@ -124,7 +126,6 @@ const Dashboard = () => {
                         />
                     </div>
 
-                    {/* Outstanding Dues Action Table */}
                     <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8'>
                         <div className='px-6 py-4 border-b border-gray-100 bg-red-50/30 flex justify-between items-center'>
                             <div>
@@ -189,7 +190,6 @@ const Dashboard = () => {
                                             const dueAmount =
                                                 (student.totalFee || 0) -
                                                 (student.paidAmount || 0)
-
                                             return (
                                                 <tr
                                                     key={student._id}
@@ -271,7 +271,6 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Shared Payment Modal Component */}
                 <RecordPaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => {
@@ -468,13 +467,40 @@ const Dashboard = () => {
 
                     <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
                         <div className='lg:col-span-2 space-y-8'>
-                            <RecentLeadsTable leads={recentLeads || []} />
+                            {/* Make rows clickable to open interaction modal */}
+                            <RecentLeadsTable
+                                leads={recentLeads || []}
+                                onSelectLead={(lead) => {
+                                    setSelectedLeadForActivity(lead)
+                                    setIsActivityPanelOpen(true)
+                                }}
+                            />
                         </div>
                         <div className='space-y-8'>
-                            <FollowUpList tasks={pendingFollowUps || []} />
+                            {/* Make rows clickable to open interaction modal */}
+                            <FollowUpList
+                                tasks={pendingFollowUps || []}
+                                onSelectLead={(lead) => {
+                                    setSelectedLeadForActivity(lead)
+                                    setIsActivityPanelOpen(true)
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
+
+                {/* Dashboard Lead Activity Drawer */}
+                <LeadActivityPanel
+                    isOpen={isActivityPanelOpen}
+                    lead={selectedLeadForActivity}
+                    onClose={() => {
+                        setIsActivityPanelOpen(false)
+                        setSelectedLeadForActivity(null)
+                    }}
+                    onActivitySuccess={() => {
+                        fetchAnalytics() // Immediately reflect lead stage/follow-up date changes
+                    }}
+                />
             </div>
         )
     }
@@ -509,7 +535,6 @@ const Dashboard = () => {
                     </p>
                 </div>
 
-                {/* Section 1: Sales & Pipeline */}
                 <h2 className='text-lg font-bold text-gray-700 mb-4 pb-2 border-b border-gray-200'>
                     Sales & Acquisition Funnel
                 </h2>
@@ -545,7 +570,6 @@ const Dashboard = () => {
                     <SourceBreakdown sources={sources || []} />
                 </div>
 
-                {/* Section 2: Revenue & Academic Delivery */}
                 <div className='grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8'>
                     <div>
                         <h2 className='text-lg font-bold text-gray-700 mb-4 pb-2 border-b border-gray-200'>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+// src/pages/Pipeline.jsx
+import { useState, useEffect, useCallback } from 'react'
 import api from '../api/axios'
 import PipelineBoard from '../components/pipeline/PipelineBoard'
 import LeadActivityPanel from '../components/leads/LeadActivityPanel'
@@ -8,29 +9,29 @@ const Pipeline = () => {
     const [stages, setStages] = useState([])
     const [isLoading, setIsLoading] = useState(true)
 
-    // New states for the activity requirement
     const [activeLeadForActivity, setActiveLeadForActivity] = useState(null)
     const [pendingMove, setPendingMove] = useState(null)
 
-    useEffect(() => {
-        const fetchPipelineData = async () => {
-            try {
-                const [leadsRes, statusesRes] = await Promise.all([
-                    api.get('/leads?limit=500'),
-                    api.get('/statuses'),
-                ])
+    const fetchPipelineData = useCallback(async (silent = false) => {
+        try {
+            if (!silent) setIsLoading(true)
+            const [leadsRes, statusesRes] = await Promise.all([
+                api.get('/leads?limit=500'),
+                api.get('/statuses'),
+            ])
 
-                setLeads(leadsRes.data.data || [])
-                setStages(statusesRes.data.data || [])
-            } catch (err) {
-                console.error('Failed to fetch pipeline data:', err)
-            } finally {
-                setIsLoading(false)
-            }
+            setLeads(leadsRes.data.data || [])
+            setStages(statusesRes.data.data || [])
+        } catch (err) {
+            console.error('Failed to fetch pipeline data:', err)
+        } finally {
+            if (!silent) setIsLoading(false)
         }
-
-        fetchPipelineData()
     }, [])
+
+    useEffect(() => {
+        fetchPipelineData()
+    }, [fetchPipelineData])
 
     const handleDragStart = (e, leadId) => {
         e.dataTransfer.setData('leadId', leadId)
@@ -76,29 +77,11 @@ const Pipeline = () => {
     }
 
     const handleActivitySuccess = async () => {
-        // Only trigger the status API update if this activity log was part of a stage move
-        if (pendingMove) {
-            try {
-                await api.put(`/leads/${pendingMove.leadId}`, {
-                    status: pendingMove.newStatus,
-                })
-                setPendingMove(null)
-                setActiveLeadForActivity(null) // Auto-close panel after successful move
-            } catch (err) {
-                console.error('Failed to update lead status:', err)
-                alert('Failed to update status. Reverting change.')
-
-                // Revert on API failure
-                setLeads((prevLeads) =>
-                    prevLeads.map((lead) =>
-                        lead._id === pendingMove.leadId
-                            ? { ...lead, status: pendingMove.oldStatus }
-                            : lead,
-                    ),
-                )
-                setPendingMove(null)
-            }
-        }
+        // The LeadActivityPanel has already successfully updated the DB with the new status.
+        // Clear the pending move locks, close the modal, and silently refresh the pipeline to ensure perfect DB sync.
+        setPendingMove(null)
+        setActiveLeadForActivity(null)
+        await fetchPipelineData(true) // Silent fetch
     }
 
     // Allows users to just click a card to view activities without moving it
@@ -142,6 +125,7 @@ const Pipeline = () => {
                     lead={activeLeadForActivity}
                     onActivitySuccess={handleActivitySuccess}
                     isPendingMove={!!pendingMove}
+                    targetStatus={pendingMove?.newStatus} // NEW: Pass down the target stage for Kanban overrides
                 />
             </div>
         </div>

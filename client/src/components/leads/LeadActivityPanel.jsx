@@ -1,6 +1,5 @@
 // src/components/leads/LeadActivityPanel.jsx
 import { useState, useEffect } from 'react'
-import RoleBadge from '../common/RoleBadge'
 import api from '../../api/axios'
 import DemoFeedbackModal from '../demos/DemoFeedbackModal'
 import DemoRescheduleModal from '../demos/DemoRescheduleModal'
@@ -26,18 +25,18 @@ const LeadActivityPanel = ({
     lead,
     onActivitySuccess,
     isPendingMove,
+    targetStatus, // NEW: Accepts the target stage from Kanban Drag
 }) => {
     const [activities, setActivities] = useState([])
     const [demoMasters, setDemoMasters] = useState([])
     const [users, setUsers] = useState([])
     const [isLoading, setIsLoading] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
-
-    // UX State: Collapsible Form
     const [isFormOpen, setIsFormOpen] = useState(true)
 
     // Form States
     const [type, setType] = useState('NOTE')
+    const [leadStatus, setLeadStatus] = useState('') // NEW: Editable lead status
     const [summary, setSummary] = useState('')
     const [callOutcome, setCallOutcome] = useState('CONNECTED')
     const [nextFollowUpDate, setNextFollowUpDate] = useState('')
@@ -45,7 +44,6 @@ const LeadActivityPanel = ({
     const [demoDate, setDemoDate] = useState('')
     const [demoAssignee, setDemoAssignee] = useState('')
 
-    // Modal States
     const [feedbackSession, setFeedbackSession] = useState(null)
     const [rescheduleSession, setRescheduleSession] = useState(null)
 
@@ -60,8 +58,10 @@ const LeadActivityPanel = ({
             )
             setType('NOTE')
             setSummary('')
+            // Pre-select Kanban targetStatus, or default to current status
+            setLeadStatus(targetStatus || lead.status || 'NEW')
         }
-    }, [isOpen, lead])
+    }, [isOpen, lead, targetStatus])
 
     const fetchActivities = async () => {
         try {
@@ -99,11 +99,7 @@ const LeadActivityPanel = ({
             if (usersRes.status === 'fulfilled') {
                 const allUsers =
                     usersRes.value.data.data || usersRes.value.data || []
-
-                // --- NEW FIX: STRICT ROLE FILTERING ---
-                // Only allow these roles to appear in the demo assignment dropdown
                 const eligibleDemoRoles = ['admin', 'sales', 'faculty']
-
                 usersList = allUsers.filter((u) => {
                     const roleName = (
                         u.role?.name ||
@@ -117,7 +113,6 @@ const LeadActivityPanel = ({
             const userInfoString = localStorage.getItem('userInfo')
             const userInfo = userInfoString ? JSON.parse(userInfoString) : null
 
-            // Fallback (only triggers if API fails entirely)
             if (usersList.length === 0 && userInfo) {
                 const myRole = (
                     userInfo.role?.name ||
@@ -142,6 +137,13 @@ const LeadActivityPanel = ({
 
         try {
             setIsSubmitting(true)
+
+            // 1. Execute Status Change if dropdown was modified OR if dragged in Kanban
+            if (leadStatus && leadStatus !== lead.status) {
+                await api.put(`/leads/${lead._id}`, { status: leadStatus })
+            }
+
+            // 2. Log the activity / Schedule Demo
             if (type === 'DEMO') {
                 if (!demoMasterId || !demoDate || !demoAssignee)
                     return alert('Please complete all fields.')
@@ -205,7 +207,6 @@ const LeadActivityPanel = ({
                 onClick={onClose}
             />
             <div className='absolute inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl flex flex-col transform transition-transform duration-300'>
-                {/* Header */}
                 <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 z-20 shrink-0'>
                     <div>
                         <h2 className='text-lg font-bold text-gray-900'>
@@ -239,7 +240,6 @@ const LeadActivityPanel = ({
                     </div>
                 )}
 
-                {/* Collapsible Form Section */}
                 <div
                     className={`bg-white shadow-sm z-10 shrink-0 transition-all duration-300 ${isFormOpen ? 'border-b border-gray-200' : ''}`}
                 >
@@ -258,31 +258,75 @@ const LeadActivityPanel = ({
                     {isFormOpen && (
                         <div className='px-6 pb-5 pt-2 animate-fade-in-up'>
                             <form onSubmit={handleSubmit} className='space-y-4'>
-                                <div className='flex gap-2'>
-                                    <select
-                                        value={type}
-                                        onChange={(e) =>
-                                            setType(e.target.value)
-                                        }
-                                        className='border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 w-1/3 outline-none'
-                                    >
-                                        <option value='NOTE'>Note</option>
-                                        <option value='CALL'>Call</option>
-                                        <option value='EMAIL'>Email</option>
-                                        <option value='WHATSAPP'>
-                                            WhatsApp
-                                        </option>
-                                        <option value='DEMO'>
-                                            Schedule Demo
-                                        </option>
-                                    </select>
-                                    {type === 'CALL' && (
+                                {/* NEW: Dual Select for Activity Type AND Status */}
+                                <div className='grid grid-cols-2 gap-3'>
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-700 mb-1'>
+                                            Activity Type
+                                        </label>
+                                        <select
+                                            value={type}
+                                            onChange={(e) =>
+                                                setType(e.target.value)
+                                            }
+                                            className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 outline-none'
+                                        >
+                                            <option value='NOTE'>Note</option>
+                                            <option value='CALL'>Call</option>
+                                            <option value='EMAIL'>Email</option>
+                                            <option value='WHATSAPP'>
+                                                WhatsApp
+                                            </option>
+                                            <option value='DEMO'>
+                                                Schedule Demo
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className='block text-xs font-semibold text-gray-700 mb-1'>
+                                            Current Stage
+                                        </label>
+                                        <select
+                                            value={leadStatus}
+                                            onChange={(e) =>
+                                                setLeadStatus(e.target.value)
+                                            }
+                                            className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-blue-500 outline-none bg-white'
+                                        >
+                                            <option value='NEW'>New</option>
+                                            <option value='CONTACTED'>
+                                                Contacted
+                                            </option>
+                                            <option value='INTERESTED'>
+                                                Interested
+                                            </option>
+                                            <option value='DEMO_SCHEDULED'>
+                                                Demo Scheduled
+                                            </option>
+                                            <option value='DEMO_ATTENDED'>
+                                                Demo Attended
+                                            </option>
+                                            <option value='QUALIFIED'>
+                                                Qualified
+                                            </option>
+                                            <option value='ENROLLED'>
+                                                Enrolled
+                                            </option>
+                                            <option value='LOST'>Lost</option>
+                                            <option value='JUNK'>Junk</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {type === 'CALL' && (
+                                    <div>
                                         <select
                                             value={callOutcome}
                                             onChange={(e) =>
                                                 setCallOutcome(e.target.value)
                                             }
-                                            className='border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 w-2/3 outline-none'
+                                            className='border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 w-full outline-none'
                                         >
                                             <option value='CONNECTED'>
                                                 Connected
@@ -292,8 +336,8 @@ const LeadActivityPanel = ({
                                                 No Answer
                                             </option>
                                         </select>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
 
                                 {type === 'DEMO' && (
                                     <div className='grid gap-3 bg-purple-50 p-4 rounded-lg border border-purple-100'>
@@ -405,14 +449,13 @@ const LeadActivityPanel = ({
                                         ? 'Saving...'
                                         : type === 'DEMO'
                                           ? 'Schedule Demo'
-                                          : 'Log Activity'}
+                                          : 'Save & Update Lead'}
                                 </button>
                             </form>
                         </div>
                     )}
                 </div>
 
-                {/* 100vh Timeline Section */}
                 <div className='flex-1 overflow-y-auto px-4 py-6 bg-gray-50 min-h-0'>
                     {isLoading ? (
                         <div className='text-center text-sm text-gray-500 mt-10'>
@@ -426,7 +469,6 @@ const LeadActivityPanel = ({
                         <div className='space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent'>
                             {activities.map((activity) => {
                                 const session = activity.details?.demoSessionId
-
                                 return (
                                     <div
                                         key={activity._id}
@@ -453,7 +495,6 @@ const LeadActivityPanel = ({
                                                 {activity.summary}
                                             </p>
 
-                                            {/* POST-DEMO ACTIONS */}
                                             {activity.type === 'DEMO' &&
                                                 session && (
                                                     <div className='bg-purple-50 rounded-md p-3 mb-2 border border-purple-100'>
@@ -534,7 +575,7 @@ const LeadActivityPanel = ({
                                                                             session,
                                                                         )
                                                                     }
-                                                                    className='w-full text-[11px] bg-white border border-purple-300 text-purple-700 py-1.5 rounded-lg font-bold hover:bg-purple-100 hover:border-purple-400 flex items-center justify-center gap-1 shadow-sm transition-all'
+                                                                    className='w-full text-[11px] bg-white border border-purple-300 text-purple-700 py-1.5 rounded-lg font-bold hover:bg-purple-100 flex items-center justify-center gap-1 shadow-sm transition-all'
                                                                 >
                                                                     <FiCheckCircle />{' '}
                                                                     Mark
@@ -560,7 +601,6 @@ const LeadActivityPanel = ({
                                                         )}
                                                     </div>
                                                 )}
-
                                             <div className='text-[10px] text-gray-400 border-t border-gray-50 pt-2 flex items-center gap-2 mt-2'>
                                                 <span>
                                                     Logged by:{' '}
@@ -583,7 +623,6 @@ const LeadActivityPanel = ({
                 </div>
             </div>
 
-            {/* Modals */}
             <DemoFeedbackModal
                 isOpen={!!feedbackSession}
                 session={feedbackSession}
@@ -595,7 +634,7 @@ const LeadActivityPanel = ({
                 session={rescheduleSession}
                 onClose={() => setRescheduleSession(null)}
                 onSuccess={handleActionSuccess}
-                users={users} // Passes the newly filtered list down to the modal
+                users={users}
             />
         </div>
     )

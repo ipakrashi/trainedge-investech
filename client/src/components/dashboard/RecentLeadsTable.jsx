@@ -1,7 +1,7 @@
 // src/components/dashboard/RecentLeadsTable.jsx
 import StatusBadge from '../common/StatusBadge'
 
-const RecentLeadsTable = ({ leads }) => {
+const RecentLeadsTable = ({ leads, onSelectLead }) => {
     return (
         <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
             <div className='flex justify-between items-center px-6 py-5 border-b border-gray-100'>
@@ -30,10 +30,13 @@ const RecentLeadsTable = ({ leads }) => {
                             leads.map((lead) => (
                                 <tr
                                     key={lead._id}
-                                    className='hover:bg-gray-50 transition-colors'
+                                    onClick={() =>
+                                        onSelectLead && onSelectLead(lead)
+                                    }
+                                    className='hover:bg-gray-50 transition-colors cursor-pointer group'
                                 >
                                     <td className='px-6 py-4'>
-                                        <div className='font-medium text-gray-900'>
+                                        <div className='font-medium text-gray-900 group-hover:text-blue-600 transition-colors'>
                                             {lead.fullName}
                                         </div>
                                     </td>
