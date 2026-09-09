@@ -25,7 +25,7 @@ const LeadActivityPanel = ({
     lead,
     onActivitySuccess,
     isPendingMove,
-    targetStatus, // NEW: Accepts the target stage from Kanban Drag
+    targetStatus,
 }) => {
     const [activities, setActivities] = useState([])
     const [demoMasters, setDemoMasters] = useState([])
@@ -36,7 +36,7 @@ const LeadActivityPanel = ({
 
     // Form States
     const [type, setType] = useState('NOTE')
-    const [leadStatus, setLeadStatus] = useState('') // NEW: Editable lead status
+    const [leadStatus, setLeadStatus] = useState('')
     const [summary, setSummary] = useState('')
     const [callOutcome, setCallOutcome] = useState('CONNECTED')
     const [nextFollowUpDate, setNextFollowUpDate] = useState('')
@@ -56,10 +56,17 @@ const LeadActivityPanel = ({
                     ? lead.nextFollowUpDate.split('T')[0]
                     : '',
             )
-            setType('NOTE')
             setSummary('')
-            // Pre-select Kanban targetStatus, or default to current status
-            setLeadStatus(targetStatus || lead.status || 'NEW')
+
+            const initialStatus = targetStatus || lead.status || 'NEW'
+            setLeadStatus(initialStatus)
+
+            // Auto-trigger DEMO activity if dragged or loaded into DEMO_SCHEDULED
+            if (initialStatus === 'DEMO_SCHEDULED') {
+                setType('DEMO')
+            } else {
+                setType('NOTE')
+            }
         }
     }, [isOpen, lead, targetStatus])
 
@@ -131,6 +138,23 @@ const LeadActivityPanel = ({
         }
     }
 
+    // Two-Way Sync Handler: Stage Change
+    const handleStatusChange = (newStatus) => {
+        setLeadStatus(newStatus)
+        if (newStatus === 'DEMO_SCHEDULED') {
+            setType('DEMO')
+            setIsFormOpen(true)
+        }
+    }
+
+    // Two-Way Sync Handler: Activity Type Change
+    const handleTypeChange = (newType) => {
+        setType(newType)
+        if (newType === 'DEMO') {
+            setLeadStatus('DEMO_SCHEDULED')
+        }
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (!summary.trim() && type !== 'DEMO') return
@@ -138,15 +162,17 @@ const LeadActivityPanel = ({
         try {
             setIsSubmitting(true)
 
-            // 1. Execute Status Change if dropdown was modified OR if dragged in Kanban
+            // 1. Update lead status if changed
             if (leadStatus && leadStatus !== lead.status) {
                 await api.put(`/leads/${lead._id}`, { status: leadStatus })
             }
 
-            // 2. Log the activity / Schedule Demo
+            // 2. Submit interaction or demo
             if (type === 'DEMO') {
                 if (!demoMasterId || !demoDate || !demoAssignee)
-                    return alert('Please complete all fields.')
+                    return alert(
+                        'Please complete all demo fields (Topic, Date, and Assignee).',
+                    )
                 await api.post('/demos/schedule', {
                     leadId: lead._id,
                     demoMasterId,
@@ -258,7 +284,6 @@ const LeadActivityPanel = ({
                     {isFormOpen && (
                         <div className='px-6 pb-5 pt-2 animate-fade-in-up'>
                             <form onSubmit={handleSubmit} className='space-y-4'>
-                                {/* NEW: Dual Select for Activity Type AND Status */}
                                 <div className='grid grid-cols-2 gap-3'>
                                     <div>
                                         <label className='block text-xs font-semibold text-gray-700 mb-1'>
@@ -267,7 +292,7 @@ const LeadActivityPanel = ({
                                         <select
                                             value={type}
                                             onChange={(e) =>
-                                                setType(e.target.value)
+                                                handleTypeChange(e.target.value)
                                             }
                                             className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 outline-none'
                                         >
@@ -290,7 +315,9 @@ const LeadActivityPanel = ({
                                         <select
                                             value={leadStatus}
                                             onChange={(e) =>
-                                                setLeadStatus(e.target.value)
+                                                handleStatusChange(
+                                                    e.target.value,
+                                                )
                                             }
                                             className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-blue-500 outline-none bg-white'
                                         >
