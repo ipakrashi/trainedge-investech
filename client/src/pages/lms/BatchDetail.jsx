@@ -1,4 +1,3 @@
-// src/components/batches/BatchDetail.jsx
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
@@ -38,14 +37,17 @@ const BatchDetail = () => {
 
     // --- EVALUATIONS (GRADEBOOK) STATE ---
     const [evaluations, setEvaluations] = useState([])
+    const [availableExams, setAvailableExams] = useState([])
     const [isFetchingEvaluations, setIsFetchingEvaluations] = useState(false)
     const [isEvaluationFormOpen, setIsEvaluationFormOpen] = useState(false)
     const [isSubmittingEvaluation, setIsSubmittingEvaluation] = useState(false)
+
     const [evaluationForm, setEvaluationForm] = useState({
+        examId: '',
         examTitle: '',
         examDate: new Date().toISOString().slice(0, 10),
         totalMarks: 100,
-        grades: [], // Array of { student, obtainedMarks, grade, facultyRemarks }
+        grades: [],
     })
 
     useEffect(() => {
@@ -62,6 +64,9 @@ const BatchDetail = () => {
             setIsLoading(true)
             const { data } = await api.get(`/batches/${batchId}`)
             setBatch(data.data)
+            if (data.data?.course?._id) {
+                fetchCourseExams(data.data.course._id)
+            }
         } catch (err) {
             setError(
                 err.response?.data?.message || 'Failed to load batch details',
@@ -71,12 +76,45 @@ const BatchDetail = () => {
         }
     }
 
+    const fetchCourseExams = async (courseId) => {
+        try {
+            const { data } = await api.get(`/exams?course=${courseId}`)
+            setAvailableExams(data.data || [])
+        } catch (err) {
+            console.error('Could not load course exams', err)
+        }
+    }
+
+    // Client-side instant grade evaluation helper
+    const computeClientGrade = (marks, totalMarks, scale) => {
+        if (marks === '' || isNaN(marks) || totalMarks <= 0) return '-'
+        const pct = (Number(marks) / Number(totalMarks)) * 100
+
+        const defaultScale = [
+            { grade: 'A+', minPercentage: 90 },
+            { grade: 'A', minPercentage: 80 },
+            { grade: 'B', minPercentage: 65 },
+            { grade: 'C', minPercentage: 50 },
+            { grade: 'F', minPercentage: 0 },
+        ]
+
+        const activeScale = scale && scale.length > 0 ? scale : defaultScale
+        const sorted = [...activeScale].sort(
+            (a, b) => b.minPercentage - a.minPercentage,
+        )
+
+        for (const t of sorted) {
+            if (pct >= t.minPercentage) return t.grade
+        }
+        return 'F'
+    }
+
     // --- SESSION HANDLERS ---
     const fetchSessions = async () => {
         try {
             setIsFetchingSessions(true)
             const { data } = await api.get(`/sessions/batch/${batchId}`)
-            setSessions(data.data)
+            setSessions(data.data || [])
         } catch (err) {
             console.error('Failed to load sessions', err)
         } finally {
@@ -130,16 +168,16 @@ const BatchDetail = () => {
             setIsFetchingEvaluations(true)
             const { data } = await api.get(`/evaluations/batch/${batchId}`)
 
-            // Group evaluations by examTitle for cleaner display
-            const grouped = data.data.reduce((acc, curr) => {
-                if (!acc[curr.examTitle]) {
-                    acc[curr.examTitle] = {
+            const grouped = (data.data || []).reduce((acc, curr) => {
+                const title = curr.exam?.title || curr.examTitle
+                if (!acc[title]) {
+                    acc[title] = {
                         examDate: curr.examDate,
                         totalMarks: curr.totalMarks,
                         records: [],
                     }
                 }
-                acc[curr.examTitle].records.push(curr)
+                acc[title].records.push(curr)
                 return acc
             }, {})
 
@@ -157,38 +195,88 @@ const BatchDetail = () => {
     }
 
     const openEvaluationForm = () => {
-        // Pre-populate the grades array with all students in the batch
-        const initialGrades = batch.students.map((s) => ({
+        const initialGrades = (batch.students || []).map((s) => ({
             student: s._id,
-            studentName: s.fullName, // Kept for UI rendering only
+            studentName: s.fullName,
             obtainedMarks: '',
-            grade: '',
+            grade: '-',
             facultyRemarks: '',
         }))
 
+        const firstExam = availableExams[0]
+
         setEvaluationForm({
-            examTitle: '',
+            examId: firstExam?._id || '',
+            examTitle: firstExam?.title || '',
             examDate: new Date().toISOString().slice(0, 10),
-            totalMarks: 100,
+            totalMarks: firstExam?.totalMarks || 100,
             grades: initialGrades,
         })
         setIsEvaluationFormOpen(true)
     }
 
-    const handleGradeChange = (studentId, field, value) => {
+    const handleExamSelectionChange = (examId) => {
+        const selected = availableExams.find((e) => e._id === examId)
+        const total = selected?.totalMarks || 100
+        const scale = selected?.gradingScale
+
+        setEvaluationForm((prev) => ({
+            ...prev,
+            examId,
+            examTitle: selected?.title || '',
+            totalMarks: total,
+            // Re-evaluate existing marks against the new exam's scale
+            grades: prev.grades.map((g) => ({
+                ...g,
+                grade: computeClientGrade(g.obtainedMarks, total, scale),
+            })),
+        }))
+    }
+
+    // Auto-calculate grade reactively as marks are typed
+    const handleMarksChange = (studentId, marksValue) => {
+        const selectedExam = availableExams.find(
+            (e) => e._id === evaluationForm.examId,
+        )
+        const scale = selectedExam?.gradingScale
+        const total = Number(evaluationForm.totalMarks) || 100
+
+        const calculatedGrade = computeClientGrade(marksValue, total, scale)
+
         setEvaluationForm((prev) => ({
             ...prev,
             grades: prev.grades.map((g) =>
-                g.student === studentId ? { ...g, [field]: value } : g,
+                g.student === studentId
+                    ? {
+                          ...g,
+                          obtainedMarks: marksValue,
+                          grade: calculatedGrade,
+                      }
+                    : g,
+            ),
+        }))
+    }
+
+    const handleRemarksChange = (studentId, remarksValue) => {
+        setEvaluationForm((prev) => ({
+            ...prev,
+            grades: prev.grades.map((g) =>
+                g.student === studentId
+                    ? { ...g, facultyRemarks: remarksValue }
+                    : g,
             ),
         }))
     }
 
     const handleEvaluationSubmit = async (e) => {
         e.preventDefault()
+        if (!evaluationForm.examId) {
+            alert('Please select an Exam from the dropdown list.')
+            return
+        }
+
         setIsSubmittingEvaluation(true)
         try {
-            // Filter out students where no marks were entered
             const validGrades = evaluationForm.grades
                 .filter((g) => g.obtainedMarks !== '')
                 .map((g) => ({
@@ -206,9 +294,10 @@ const BatchDetail = () => {
 
             await api.post('/evaluations/bulk', {
                 batchId,
+                examId: evaluationForm.examId,
                 examTitle: evaluationForm.examTitle,
+                totalMarks: Number(evaluationForm.totalMarks),
                 examDate: evaluationForm.examDate,
-                totalMarks: evaluationForm.totalMarks,
                 grades: validGrades,
             })
 
@@ -218,6 +307,22 @@ const BatchDetail = () => {
             alert(err.response?.data?.message || 'Failed to save evaluations')
         } finally {
             setIsSubmittingEvaluation(false)
+        }
+    }
+
+    const getGradeBadgeStyle = (grade) => {
+        switch (grade) {
+            case 'A+':
+            case 'A':
+                return 'bg-green-100 text-green-800 border-green-200'
+            case 'B':
+                return 'bg-blue-100 text-blue-800 border-blue-200'
+            case 'C':
+                return 'bg-amber-100 text-amber-800 border-amber-200'
+            case 'F':
+                return 'bg-red-100 text-red-800 border-red-200'
+            default:
+                return 'bg-gray-100 text-gray-400 border-gray-200'
         }
     }
 
@@ -244,19 +349,23 @@ const BatchDetail = () => {
                 <FiArrowLeft className='mr-2' /> Back to Batches
             </button>
 
+            {/* Header Card */}
             <div className='bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden mb-8'>
                 <div className='p-6 sm:p-8 bg-gradient-to-r from-blue-50 to-white'>
                     <div className='sm:flex sm:items-center sm:justify-between'>
                         <div>
                             <div className='flex items-center gap-3 mb-2'>
                                 <span
-                                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${batch.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}
+                                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        batch.status === 'ACTIVE'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-blue-100 text-blue-700'
+                                    }`}
                                 >
                                     {batch.status}
                                 </span>
                                 <span className='text-sm font-medium text-gray-500 flex items-center'>
-                                    <FiCalendar className='mr-1' />
-                                    Started:{' '}
+                                    <FiCalendar className='mr-1' /> Started:{' '}
                                     {new Date(
                                         batch.startDate,
                                     ).toLocaleDateString('en-IN')}
@@ -281,20 +390,32 @@ const BatchDetail = () => {
                     <nav className='flex space-x-8' aria-label='Tabs'>
                         <button
                             onClick={() => setActiveTab('sessions')}
-                            className={`${activeTab === 'sessions' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                            className={`${
+                                activeTab === 'sessions'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
                         >
                             <FiCheckSquare className='mr-2' /> Session Logs
                         </button>
                         <button
                             onClick={() => setActiveTab('roster')}
-                            className={`${activeTab === 'roster' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                            className={`${
+                                activeTab === 'roster'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
                         >
                             <FiUsers className='mr-2' /> Enrolled Students (
                             {batch.students?.length || 0})
                         </button>
                         <button
                             onClick={() => setActiveTab('evaluations')}
-                            className={`${activeTab === 'evaluations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                            className={`${
+                                activeTab === 'evaluations'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
                         >
                             <FiAward className='mr-2' /> Gradebook
                         </button>
@@ -313,7 +434,7 @@ const BatchDetail = () => {
                             {!isSessionFormOpen && (
                                 <button
                                     onClick={() => setIsSessionFormOpen(true)}
-                                    className='flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors'
+                                    className='flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700'
                                 >
                                     <FiPlus className='mr-2' /> Log New Session
                                 </button>
@@ -323,7 +444,7 @@ const BatchDetail = () => {
                         {isSessionFormOpen && (
                             <form
                                 onSubmit={handleSessionSubmit}
-                                className='bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8 animate-fade-in-up'
+                                className='bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8'
                             >
                                 <h3 className='font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2'>
                                     New Session Details
@@ -382,7 +503,7 @@ const BatchDetail = () => {
                                             })
                                         }
                                         className='w-full border border-gray-300 px-3 py-2 rounded-lg outline-none focus:border-blue-500'
-                                    ></textarea>
+                                    />
                                 </div>
                                 <div className='mb-6'>
                                     <label className='block text-sm font-medium text-gray-700 mb-1'>
@@ -398,7 +519,7 @@ const BatchDetail = () => {
                                             })
                                         }
                                         className='w-full border border-gray-300 px-3 py-2 rounded-lg outline-none focus:border-blue-500'
-                                    ></textarea>
+                                    />
                                 </div>
                                 <div className='border-t border-gray-200 pt-4'>
                                     <div className='flex justify-between items-center mb-3'>
@@ -417,11 +538,11 @@ const BatchDetail = () => {
                                         {batch.students.map((student) => (
                                             <label
                                                 key={student._id}
-                                                className='flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer border border-transparent hover:border-gray-100 transition-colors'
+                                                className='flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer border border-transparent hover:border-gray-100'
                                             >
                                                 <input
                                                     type='checkbox'
-                                                    className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer'
+                                                    className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
                                                     checked={sessionForm.attendance.includes(
                                                         student._id,
                                                     )}
@@ -444,21 +565,21 @@ const BatchDetail = () => {
                                         onClick={() =>
                                             setIsSessionFormOpen(false)
                                         }
-                                        className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50'
+                                        className='px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50'
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type='submit'
                                         disabled={isSubmittingSession}
-                                        className='px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center'
+                                        className='px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center'
                                     >
                                         {isSubmittingSession ? (
                                             'Saving...'
                                         ) : (
                                             <>
                                                 <FiCheck className='mr-2' />{' '}
-                                                Save Session Record
+                                                Save Session
                                             </>
                                         )}
                                     </button>
@@ -482,9 +603,9 @@ const BatchDetail = () => {
                                 {sessions.map((session, index) => (
                                     <div
                                         key={session._id}
-                                        className='bg-white border border-gray-100 shadow-sm rounded-lg p-5 flex flex-col md:flex-row md:items-start gap-4 hover:border-blue-100 transition-colors'
+                                        className='bg-white border border-gray-100 shadow-sm rounded-lg p-5 flex flex-col md:flex-row gap-4'
                                     >
-                                        <div className='flex-shrink-0 bg-blue-50 text-blue-700 rounded-lg p-3 text-center min-w-[100px]'>
+                                        <div className='bg-blue-50 text-blue-700 rounded-lg p-3 text-center min-w-[100px]'>
                                             <div className='text-xs uppercase font-bold tracking-wider mb-1'>
                                                 Session{' '}
                                                 {sessions.length - index}
@@ -506,12 +627,12 @@ const BatchDetail = () => {
                                                 {session.topicsCovered}
                                             </p>
                                         </div>
-                                        <div className='flex-shrink-0 md:text-right flex md:flex-col gap-4 md:gap-2 items-center md:items-end border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-4'>
-                                            <div className='text-xs text-gray-500 flex items-center'>
+                                        <div className='text-xs text-gray-500 md:text-right flex md:flex-col justify-between items-center md:items-end'>
+                                            <div className='flex items-center mb-2'>
                                                 <FiClock className='mr-1' />{' '}
                                                 {session.durationMinutes} mins
                                             </div>
-                                            <div className='text-xs font-medium bg-green-50 text-green-700 px-2 py-1 rounded'>
+                                            <div className='font-medium bg-green-50 text-green-700 px-2 py-1 rounded'>
                                                 Attendance:{' '}
                                                 {session.attendance?.length} /{' '}
                                                 {batch.students?.length}
@@ -524,7 +645,7 @@ const BatchDetail = () => {
                     </div>
                 )}
 
-                {/* TAB 2: STUDENT ROSTER */}
+                {/* TAB 2: ROSTER */}
                 {activeTab === 'roster' && (
                     <div>
                         <h2 className='text-lg font-bold text-gray-900 mb-4'>
@@ -537,7 +658,6 @@ const BatchDetail = () => {
                         ) : (
                             <div className='overflow-x-auto border border-gray-200 rounded-lg'>
                                 <table className='w-full text-left text-sm'>
-                                    {/* UPDATED: text-gray-900 font-bold applied to tr */}
                                     <thead className='bg-gray-50 border-b border-gray-200'>
                                         <tr className='text-gray-900 font-bold uppercase'>
                                             <th className='px-4 py-3'>
@@ -569,7 +689,12 @@ const BatchDetail = () => {
                                                 </td>
                                                 <td className='px-4 py-3'>
                                                     <span
-                                                        className={`px-2 py-1 text-xs font-medium rounded-full ${student.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
+                                                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                            student.status ===
+                                                            'ACTIVE'
+                                                                ? 'bg-green-100 text-green-700'
+                                                                : 'bg-gray-100 text-gray-600'
+                                                        }`}
                                                     >
                                                         {student.status}
                                                     </span>
@@ -583,7 +708,7 @@ const BatchDetail = () => {
                     </div>
                 )}
 
-                {/* TAB 3: GRADEBOOK */}
+                {/* TAB 3: GRADEBOOK WITH AUTO-CALCULATED GRADE PILL */}
                 {activeTab === 'evaluations' && (
                     <div>
                         <div className='flex justify-between items-center mb-6'>
@@ -593,43 +718,54 @@ const BatchDetail = () => {
                             {!isEvaluationFormOpen && (
                                 <button
                                     onClick={openEvaluationForm}
-                                    className='flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors'
+                                    className='flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700'
                                 >
-                                    <FiPlus className='mr-2' /> Log New Exam
+                                    <FiPlus className='mr-2' /> Record Exam
+                                    Results
                                 </button>
                             )}
                         </div>
 
-                        {/* Bulk Grade Entry Form */}
                         {isEvaluationFormOpen && (
                             <form
                                 onSubmit={handleEvaluationSubmit}
-                                className='bg-white border border-blue-200 shadow-md rounded-xl p-6 mb-8 animate-fade-in-up relative overflow-hidden'
+                                className='bg-white border border-blue-200 shadow-md rounded-xl p-6 mb-8 relative overflow-hidden'
                             >
                                 <div className='absolute top-0 left-0 w-full h-1 bg-blue-600'></div>
                                 <h3 className='font-bold text-gray-800 mb-4 border-b border-gray-100 pb-2'>
-                                    Record Exam Results
+                                    Record Standardized Assessment
                                 </h3>
 
                                 <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
                                     <div>
                                         <label className='block text-sm font-medium text-gray-700 mb-1'>
-                                            Exam Title
+                                            Select Exam Master
                                         </label>
-                                        <input
-                                            type='text'
+                                        <select
                                             required
-                                            value={evaluationForm.examTitle}
+                                            value={evaluationForm.examId}
                                             onChange={(e) =>
-                                                setEvaluationForm({
-                                                    ...evaluationForm,
-                                                    examTitle: e.target.value,
-                                                })
+                                                handleExamSelectionChange(
+                                                    e.target.value,
+                                                )
                                             }
-                                            placeholder='e.g. Mid-Term Evaluation'
-                                            className='w-full border border-gray-300 px-3 py-2 rounded-lg outline-none focus:border-blue-500'
-                                        />
+                                            className='w-full border border-gray-300 px-3 py-2 rounded-lg outline-none focus:border-blue-500 bg-white'
+                                        >
+                                            <option value=''>
+                                                Choose Exam...
+                                            </option>
+                                            {availableExams.map((e) => (
+                                                <option
+                                                    key={e._id}
+                                                    value={e._id}
+                                                >
+                                                    {e.title} ({e.totalMarks}{' '}
+                                                    Marks)
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
+
                                     <div>
                                         <label className='block text-sm font-medium text-gray-700 mb-1'>
                                             Date of Exam
@@ -647,29 +783,22 @@ const BatchDetail = () => {
                                             className='w-full border border-gray-300 px-3 py-2 rounded-lg outline-none focus:border-blue-500'
                                         />
                                     </div>
+
                                     <div>
                                         <label className='block text-sm font-medium text-gray-700 mb-1'>
-                                            Total Marks
+                                            Total Marks (Preset)
                                         </label>
                                         <input
                                             type='number'
-                                            required
-                                            min='1'
+                                            disabled
                                             value={evaluationForm.totalMarks}
-                                            onChange={(e) =>
-                                                setEvaluationForm({
-                                                    ...evaluationForm,
-                                                    totalMarks: e.target.value,
-                                                })
-                                            }
-                                            className='w-full border border-gray-300 px-3 py-2 rounded-lg outline-none focus:border-blue-500'
+                                            className='w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-lg outline-none text-gray-500 cursor-not-allowed'
                                         />
                                     </div>
                                 </div>
 
                                 <div className='overflow-x-auto border border-gray-200 rounded-lg'>
                                     <table className='w-full text-left text-sm'>
-                                        {/* UPDATED: text-gray-900 font-bold applied to tr */}
                                         <thead className='bg-gray-50 border-b border-gray-200'>
                                             <tr className='text-gray-900 font-bold'>
                                                 <th className='px-4 py-3'>
@@ -678,8 +807,8 @@ const BatchDetail = () => {
                                                 <th className='px-4 py-3 w-32'>
                                                     Marks Obtained
                                                 </th>
-                                                <th className='px-4 py-3 w-24'>
-                                                    Grade
+                                                <th className='px-4 py-3 w-28 text-center'>
+                                                    Grade (Auto)
                                                 </th>
                                                 <th className='px-4 py-3'>
                                                     Faculty Remarks
@@ -707,9 +836,8 @@ const BatchDetail = () => {
                                                                     grade.obtainedMarks
                                                                 }
                                                                 onChange={(e) =>
-                                                                    handleGradeChange(
+                                                                    handleMarksChange(
                                                                         grade.student,
-                                                                        'obtainedMarks',
                                                                         e.target
                                                                             .value,
                                                                     )
@@ -718,24 +846,15 @@ const BatchDetail = () => {
                                                                 placeholder='0'
                                                             />
                                                         </td>
-                                                        <td className='px-4 py-2'>
-                                                            <input
-                                                                type='text'
-                                                                value={
-                                                                    grade.grade
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleGradeChange(
-                                                                        grade.student,
-                                                                        'grade',
-                                                                        e.target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                                className='w-full border border-gray-300 px-2 py-1 rounded outline-none focus:border-blue-500 uppercase'
-                                                                placeholder='A, B+, etc.'
-                                                                maxLength='5'
-                                                            />
+                                                        <td className='px-4 py-2 text-center'>
+                                                            <span
+                                                                className={`inline-block px-3 py-1 text-xs font-bold rounded-md border ${getGradeBadgeStyle(
+                                                                    grade.grade,
+                                                                )}`}
+                                                            >
+                                                                {grade.grade ||
+                                                                    '-'}
+                                                            </span>
                                                         </td>
                                                         <td className='px-4 py-2'>
                                                             <input
@@ -744,9 +863,8 @@ const BatchDetail = () => {
                                                                     grade.facultyRemarks
                                                                 }
                                                                 onChange={(e) =>
-                                                                    handleGradeChange(
+                                                                    handleRemarksChange(
                                                                         grade.student,
-                                                                        'facultyRemarks',
                                                                         e.target
                                                                             .value,
                                                                     )
@@ -790,7 +908,7 @@ const BatchDetail = () => {
                             </form>
                         )}
 
-                        {/* Past Evaluations Display */}
+                        {/* PAST EVALUATIONS */}
                         {isFetchingEvaluations ? (
                             <div className='text-center py-8 text-gray-500 text-sm'>
                                 Loading gradebook...
@@ -800,8 +918,7 @@ const BatchDetail = () => {
                             <div className='text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300'>
                                 <FiAward className='mx-auto h-8 w-8 text-gray-300 mb-3' />
                                 <p className='text-gray-500 text-sm'>
-                                    No exams have been recorded for this cohort
-                                    yet.
+                                    No exams recorded for this cohort yet.
                                 </p>
                             </div>
                         ) : (
@@ -831,7 +948,6 @@ const BatchDetail = () => {
                                         </div>
                                         <div className='overflow-x-auto'>
                                             <table className='w-full text-left text-sm'>
-                                                {/* UPDATED: text-gray-900 font-bold applied to tr */}
                                                 <thead className='bg-white border-b border-gray-100'>
                                                     <tr className='text-gray-900 font-bold'>
                                                         <th className='px-4 py-3'>
@@ -840,7 +956,7 @@ const BatchDetail = () => {
                                                         <th className='px-4 py-3'>
                                                             Score
                                                         </th>
-                                                        <th className='px-4 py-3'>
+                                                        <th className='px-4 py-3 text-center'>
                                                             Grade
                                                         </th>
                                                         <th className='px-4 py-3'>
@@ -872,8 +988,12 @@ const BatchDetail = () => {
                                                                         }
                                                                     </span>
                                                                 </td>
-                                                                <td className='px-4 py-3'>
-                                                                    <span className='px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-xs rounded'>
+                                                                <td className='px-4 py-3 text-center'>
+                                                                    <span
+                                                                        className={`inline-block px-2.5 py-0.5 font-bold text-xs rounded border ${getGradeBadgeStyle(
+                                                                            record.grade,
+                                                                        )}`}
+                                                                    >
                                                                         {record.grade ||
                                                                             '-'}
                                                                     </span>

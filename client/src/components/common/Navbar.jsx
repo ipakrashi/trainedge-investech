@@ -18,6 +18,7 @@ import {
     FiDollarSign,
     FiCreditCard,
     FiMonitor,
+    FiFileText, // <-- Added for Exam Master
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -198,6 +199,12 @@ const Navbar = () => {
                                                             label='Manage Batches'
                                                             colorClass='blue'
                                                         />
+                                                        <MegaMenuLink
+                                                            to='/admin/exams'
+                                                            icon={FiFileText}
+                                                            label='Exam Master'
+                                                            colorClass='blue'
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -320,7 +327,7 @@ const Navbar = () => {
             {/* Mobile Navigation Menu Drawer */}
             {isOpen && (
                 <div className='md:hidden bg-white border-t border-gray-100 shadow-2xl absolute w-full left-0 z-50 max-h-[calc(100vh-4rem)] overflow-y-auto'>
-                    {/* NEW: Sticky Welcome Header with Dynamic Colors */}
+                    {/* Sticky Welcome Header with Dynamic Colors */}
                     <div className='sticky top-0 bg-white/95 backdrop-blur-sm z-20 px-4 py-4 border-b border-gray-100 shadow-sm flex items-center'>
                         <FiUser className='text-xl mr-2 text-gray-700' />
                         <span className={roleBadgeClass}>
@@ -463,6 +470,13 @@ const Navbar = () => {
                                             className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
                                         >
                                             <FiBook /> Manage Courses
+                                        </Link>
+                                        <Link
+                                            to='/admin/exams'
+                                            onClick={toggleMenu}
+                                            className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+                                        >
+                                            <FiFileText /> Exam Master
                                         </Link>
                                         <Link
                                             to='/admin/roles'

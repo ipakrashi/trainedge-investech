@@ -18,6 +18,7 @@ import batchRoutes from './routes/batchRoutes.js'
 import evaluationRoutes from './routes/evaluationRoutes.js'
 import sessionLogRoutes from './routes/sessionLogRoutes.js'
 import demoRoutes from './routes/demoRoutes.js'
+import examRoutes from './routes/examRoutes.js'
 
 import cookieParser from 'cookie-parser'
 import path from 'path'
@@ -55,6 +56,7 @@ app.use('/api/batches', batchRoutes)
 app.use('/api/evaluations', evaluationRoutes)
 app.use('/api/sessions', sessionLogRoutes)
 app.use('/api/demos', demoRoutes)
+app.use('/api/exams', examRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {

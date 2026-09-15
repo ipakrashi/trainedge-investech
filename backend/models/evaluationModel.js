@@ -19,6 +19,13 @@ const evaluationSchema = mongoose.Schema(
             ref: 'userModel',
             required: true,
         },
+        // --- ADD THIS FIELD ---
+        exam: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'examModel',
+            required: true,
+            index: true,
+        },
         examTitle: {
             type: String,
             required: true,

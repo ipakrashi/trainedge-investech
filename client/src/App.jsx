@@ -21,6 +21,7 @@ import PaymentManagement from './pages/admin/PaymentManagement'
 import ManagePaymentModes from './pages/admin/ManagePaymentModes'
 import BatchesOverview from './pages/lms/BatchesOverview'
 import BatchDetail from './pages/lms/BatchDetail'
+import ExamManagement from './pages/admin/ExamManagement'
 
 // --- NEW IMPORTS ---
 import ManageDemoMaster from './pages/admin/ManageDemoMaster'
@@ -97,6 +98,10 @@ const App = () => {
                             <Route
                                 path='/admin/payment-modes'
                                 element={<ManagePaymentModes />}
+                            />
+                            <Route
+                                path='/admin/exams'
+                                element={<ExamManagement />}
                             />
                             {/* --- NEW: ADMIN DEMO MASTER --- */}
                             <Route
