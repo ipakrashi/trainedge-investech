@@ -12,6 +12,9 @@ import {
     FiLayers,
     FiSearch,
     FiFilter,
+    FiMapPin,
+    FiPhone,
+    FiMail,
 } from 'react-icons/fi'
 
 const StudentRoster = () => {
@@ -81,14 +84,12 @@ const StudentRoster = () => {
     }, [])
 
     // --- DERIVED DATA & FILTERING ---
-    // Helper to find which batches a student is in
     const getStudentBatches = (studentId) => {
         return batches.filter((b) =>
             b.students?.some((sId) => sId.toString() === studentId.toString()),
         )
     }
 
-    // Extract unique courses dynamically for the filter dropdown
     const availableCourses = useMemo(() => {
         const map = new Map()
         students.forEach((s) => {
@@ -234,6 +235,19 @@ const StudentRoster = () => {
         }
     }
 
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case 'ACTIVE':
+                return 'bg-green-100 text-green-700 border-green-200'
+            case 'GRADUATED':
+                return 'bg-blue-100 text-blue-700 border-blue-200'
+            case 'DROPPED':
+                return 'bg-red-100 text-red-700 border-red-200'
+            default:
+                return 'bg-gray-100 text-gray-700 border-gray-200'
+        }
+    }
+
     if (isLoading) {
         return (
             <div className='flex items-center justify-center h-[calc(100vh-200px)]'>
@@ -243,10 +257,10 @@ const StudentRoster = () => {
     }
 
     return (
-        <div className='bg-gray-50 min-h-screen py-8 relative'>
+        <div className='bg-gray-50 min-h-screen py-6 sm:py-8 relative'>
             <div className='max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8'>
                 {/* Header & Bulk Action Bar */}
-                <div className='mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between'>
+                <div className='mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
                     <div>
                         <h1 className='text-2xl font-bold text-gray-900'>
                             Student Roster
@@ -260,22 +274,22 @@ const StudentRoster = () => {
 
                     {/* Bulk Action Button */}
                     {isAdmin && selectedStudentIds.length > 0 && (
-                        <div className='mt-4 sm:mt-0 flex items-center bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 animate-fade-in-up'>
-                            <span className='text-sm font-medium text-blue-800 mr-4'>
-                                {selectedStudentIds.length} selected
+                        <div className='flex items-center justify-between sm:justify-start bg-blue-50 px-4 py-2.5 rounded-lg border border-blue-100'>
+                            <span className='text-xs sm:text-sm font-semibold text-blue-800 mr-4'>
+                                {selectedStudentIds.length} student(s) selected
                             </span>
                             <button
                                 onClick={() => setIsBatchModalOpen(true)}
-                                className='inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors'
+                                className='inline-flex items-center px-3 py-1.5 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors'
                             >
-                                <FiLayers className='mr-2' /> Assign to Batch
+                                <FiLayers className='mr-1.5' /> Assign to Batch
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* Powerful Filtering Engine */}
-                <div className='bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+                {/* Filtering Bar */}
+                <div className='bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
                     <div className='relative'>
                         <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                             <FiSearch className='text-gray-400' />
@@ -339,12 +353,233 @@ const StudentRoster = () => {
                     </div>
                 </div>
 
-                {/* Data Table */}
-                <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+                {/* 1. MOBILE CARD VIEW (< md screens) */}
+                <div className='block md:hidden space-y-3 mb-6'>
+                    {/* Mobile Bulk Selection Bar */}
+                    {isAdmin && filteredStudents.length > 0 && (
+                        <div className='bg-white p-3 rounded-lg border border-gray-200 flex items-center justify-between text-xs font-semibold text-gray-700 shadow-sm'>
+                            <label className='flex items-center gap-2 cursor-pointer'>
+                                <input
+                                    type='checkbox'
+                                    className='rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4'
+                                    onChange={handleSelectAll}
+                                    checked={
+                                        selectedStudentIds.length ===
+                                            filteredStudents.length &&
+                                        filteredStudents.length > 0
+                                    }
+                                />
+                                <span>
+                                    Select All ({filteredStudents.length})
+                                </span>
+                            </label>
+                            <span className='text-blue-600 font-bold'>
+                                {selectedStudentIds.length} Selected
+                            </span>
+                        </div>
+                    )}
+
+                    {filteredStudents.length > 0 ? (
+                        filteredStudents.map((student) => {
+                            const studentBatches = getStudentBatches(
+                                student._id,
+                            )
+                            const isSelected = selectedStudentIds.includes(
+                                student._id,
+                            )
+
+                            return (
+                                <div
+                                    key={student._id}
+                                    className={`bg-white rounded-xl border p-4 shadow-sm space-y-3 transition-colors ${
+                                        isSelected
+                                            ? 'border-blue-300 bg-blue-50/30'
+                                            : 'border-gray-100'
+                                    }`}
+                                >
+                                    {/* Top Row: Select, Name, Status */}
+                                    <div className='flex items-start justify-between gap-3'>
+                                        <div className='flex items-start gap-3'>
+                                            {isAdmin && (
+                                                <input
+                                                    type='checkbox'
+                                                    className='rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-1 cursor-pointer'
+                                                    checked={isSelected}
+                                                    onChange={() =>
+                                                        handleSelectStudent(
+                                                            student._id,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                            <div>
+                                                <h3 className='font-bold text-gray-900 text-base'>
+                                                    {student.fullName}
+                                                </h3>
+                                                <p className='text-xs text-gray-400 mt-0.5'>
+                                                    ID: {student._id.slice(-6)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span
+                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border flex-shrink-0 ${getStatusStyle(
+                                                student.status,
+                                            )}`}
+                                        >
+                                            {student.status === 'ACTIVE' && (
+                                                <FiCheckCircle className='mr-1' />
+                                            )}
+                                            {student.status}
+                                        </span>
+                                    </div>
+
+                                    {/* Contact Information */}
+                                    <div className='bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-xs space-y-1 text-gray-600'>
+                                        <div className='flex items-center gap-2 truncate'>
+                                            <FiMail className='text-gray-400 flex-shrink-0' />
+                                            <span className='truncate'>
+                                                {student.email}
+                                            </span>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <FiPhone className='text-gray-400 flex-shrink-0' />
+                                            <span>{student.phone}</span>
+                                        </div>
+                                        {(student.city || student.pincode) && (
+                                            <div className='flex items-center gap-2 text-gray-400'>
+                                                <FiMapPin className='flex-shrink-0' />
+                                                <span>
+                                                    {student.city}{' '}
+                                                    {student.pincode}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Academic Tags */}
+                                    <div className='space-y-2 text-xs'>
+                                        <div>
+                                            <span className='text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1'>
+                                                Courses Enrolled
+                                            </span>
+                                            <div className='flex flex-wrap gap-1'>
+                                                {student.enrolledCourses?.map(
+                                                    (course) => (
+                                                        <span
+                                                            key={course._id}
+                                                            className='inline-flex items-center bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium'
+                                                        >
+                                                            <FiBookOpen className='mr-1' />
+                                                            {course.courseTitle}
+                                                        </span>
+                                                    ),
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <span className='text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1'>
+                                                Cohort / Batch
+                                            </span>
+                                            <div className='flex flex-wrap gap-1'>
+                                                {studentBatches.length > 0 ? (
+                                                    studentBatches.map((b) => (
+                                                        <span
+                                                            key={b._id}
+                                                            className='inline-flex items-center bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-medium'
+                                                        >
+                                                            <FiLayers className='mr-1' />
+                                                            {b.batchName}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className='text-gray-400 italic'>
+                                                        Unassigned
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {isAdmin && (
+                                            <div>
+                                                <span className='text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5'>
+                                                    Assigned Faculty
+                                                </span>
+                                                <span className='text-gray-700 font-medium flex items-center'>
+                                                    <FiUser className='mr-1 text-gray-400' />
+                                                    {student.assignedFaculty
+                                                        ?.firstName ||
+                                                        'Unknown'}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Actions & Links Bar */}
+                                    <div className='pt-2 border-t border-gray-100 flex items-center justify-between'>
+                                        <div className='flex items-center gap-2'>
+                                            {student.studentAgreementLink ? (
+                                                <a
+                                                    href={
+                                                        student.studentAgreementLink
+                                                    }
+                                                    target='_blank'
+                                                    rel='noreferrer'
+                                                    title='View Agreement'
+                                                    className='text-blue-600 bg-blue-50 hover:bg-blue-100 p-1.5 rounded-md text-xs inline-flex items-center gap-1 transition-colors'
+                                                >
+                                                    <FiFileText size={14} />{' '}
+                                                    Agreement
+                                                </a>
+                                            ) : (
+                                                <span className='text-gray-300 bg-gray-50 p-1.5 rounded-md text-xs inline-flex items-center gap-1 cursor-not-allowed'>
+                                                    <FiFileText size={14} /> No
+                                                    Agreement
+                                                </span>
+                                            )}
+
+                                            {student.certificateLink ? (
+                                                <a
+                                                    href={
+                                                        student.certificateLink
+                                                    }
+                                                    target='_blank'
+                                                    rel='noreferrer'
+                                                    title='View Certificate'
+                                                    className='text-amber-600 bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md text-xs inline-flex items-center gap-1 transition-colors'
+                                                >
+                                                    <FiAward size={14} />{' '}
+                                                    Certificate
+                                                </a>
+                                            ) : null}
+                                        </div>
+
+                                        {isAdmin && (
+                                            <button
+                                                onClick={() =>
+                                                    handleEditClick(student)
+                                                }
+                                                className='text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors'
+                                            >
+                                                <FiEdit size={14} /> Edit
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })
+                    ) : (
+                        <div className='bg-white rounded-xl p-8 text-center text-gray-500 text-sm border border-gray-100'>
+                            No students match the selected filters.
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. DESKTOP TABULAR VIEW (>= md screens) */}
+                <div className='hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
                     <div className='overflow-x-auto'>
                         <table className='w-full text-left border-collapse'>
                             <thead>
-                                {/* UPDATED: text-gray-900, font-bold added, font-medium removed from children */}
                                 <tr className='bg-gray-50 text-gray-900 font-bold text-xs uppercase tracking-wider border-b border-gray-100'>
                                     {isAdmin && (
                                         <th className='px-6 py-4 w-12'>
@@ -384,7 +619,13 @@ const StudentRoster = () => {
                                     return (
                                         <tr
                                             key={student._id}
-                                            className={`hover:bg-gray-50 ${selectedStudentIds.includes(student._id) ? 'bg-blue-50/50' : ''}`}
+                                            className={`hover:bg-gray-50 transition-colors ${
+                                                selectedStudentIds.includes(
+                                                    student._id,
+                                                )
+                                                    ? 'bg-blue-50/50'
+                                                    : ''
+                                            }`}
                                         >
                                             {isAdmin && (
                                                 <td className='px-6 py-4'>
@@ -475,7 +716,9 @@ const StudentRoster = () => {
                                             )}
                                             <td className='px-6 py-4'>
                                                 <span
-                                                    className={`flex items-center text-xs font-medium w-fit ${student.status === 'ACTIVE' ? 'text-green-600' : 'text-gray-500'}`}
+                                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusStyle(
+                                                        student.status,
+                                                    )}`}
                                                 >
                                                     {student.status ===
                                                         'ACTIVE' && (
@@ -573,26 +816,29 @@ const StudentRoster = () => {
             {isBatchModalOpen && (
                 <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm'>
                     <div className='bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden'>
-                        <div className='flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50'>
-                            <h2 className='text-lg font-bold text-gray-900'>
+                        <div className='flex justify-between items-center p-5 sm:p-6 border-b border-gray-100 bg-gray-50'>
+                            <h2 className='text-base sm:text-lg font-bold text-gray-900'>
                                 Assign to Batch
                             </h2>
                             <button
                                 onClick={() => setIsBatchModalOpen(false)}
                                 className='text-gray-400 hover:text-gray-600 transition-colors'
                             >
-                                <FiX size={24} />
+                                <FiX size={22} />
                             </button>
                         </div>
-                        <form onSubmit={handleAssignToBatch} className='p-6'>
-                            <p className='text-sm text-gray-600 mb-4'>
+                        <form
+                            onSubmit={handleAssignToBatch}
+                            className='p-5 sm:p-6'
+                        >
+                            <p className='text-xs sm:text-sm text-gray-600 mb-4'>
                                 You are about to assign{' '}
                                 <span className='font-bold text-blue-600'>
                                     {selectedStudentIds.length} student(s)
                                 </span>{' '}
                                 to a cohort.
                             </p>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                 Select Active Batch
                             </label>
                             <select
@@ -601,7 +847,7 @@ const StudentRoster = () => {
                                 onChange={(e) =>
                                     setSelectedBatch(e.target.value)
                                 }
-                                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white'
+                                className='w-full px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-white'
                             >
                                 <option value=''>-- Choose a Batch --</option>
                                 {batches
@@ -616,18 +862,18 @@ const StudentRoster = () => {
                                     ))}
                             </select>
 
-                            <div className='flex justify-end gap-3 pt-6 mt-2'>
+                            <div className='flex justify-end gap-3 pt-5 mt-3 border-t border-gray-100'>
                                 <button
                                     type='button'
                                     onClick={() => setIsBatchModalOpen(false)}
-                                    className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
+                                    className='px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50'
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type='submit'
                                     disabled={isAssigning || !selectedBatch}
-                                    className='px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50'
+                                    className='px-4 py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50'
                                 >
                                     {isAssigning
                                         ? 'Assigning...'
@@ -643,32 +889,32 @@ const StudentRoster = () => {
             {isEditModalOpen && isAdmin && (
                 <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm'>
                     <div className='bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden'>
-                        <div className='flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50 shrink-0'>
-                            <h2 className='text-xl font-bold text-gray-900'>
+                        <div className='flex justify-between items-center p-5 sm:p-6 border-b border-gray-100 bg-gray-50 shrink-0'>
+                            <h2 className='text-lg sm:text-xl font-bold text-gray-900'>
                                 Edit Student Details
                             </h2>
                             <button
                                 onClick={handleCloseEditModal}
                                 className='text-gray-400 hover:text-gray-600 transition-colors'
                             >
-                                <FiX size={24} />
+                                <FiX size={22} />
                             </button>
                         </div>
 
                         <form
                             onSubmit={handleEditSubmit}
-                            className='flex flex-col min-h-0'
+                            className='flex flex-col min-h-0 flex-1'
                         >
-                            <div className='p-6 space-y-4 overflow-y-auto flex-1'>
+                            <div className='p-5 sm:p-6 space-y-4 overflow-y-auto flex-1'>
                                 <div>
-                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                    <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                         Academic Status
                                     </label>
                                     <select
                                         name='status'
                                         value={formData.status}
                                         onChange={handleChange}
-                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                                        className='w-full px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-white'
                                     >
                                         <option value='ACTIVE'>ACTIVE</option>
                                         <option value='GRADUATED'>
@@ -679,14 +925,14 @@ const StudentRoster = () => {
                                 </div>
 
                                 <div>
-                                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                    <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                         Assign to Cohort / Batch
                                     </label>
                                     <select
                                         name='batchToAssign'
                                         value={formData.batchToAssign}
                                         onChange={handleChange}
-                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white'
+                                        className='w-full px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-white'
                                     >
                                         <option value=''>
                                             -- Leave Unchanged / Unassigned --
@@ -705,16 +951,15 @@ const StudentRoster = () => {
                                                 </option>
                                             ))}
                                     </select>
-                                    <p className='text-xs text-gray-500 mt-1'>
+                                    <p className='text-xs text-gray-400 mt-1'>
                                         Select a batch to override or establish
-                                        a new cohort assignment for this
-                                        student.
+                                        a new cohort assignment.
                                     </p>
                                 </div>
 
-                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                                    <div className='md:col-span-2'>
-                                        <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
+                                    <div className='sm:col-span-2'>
+                                        <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                             Street Address
                                         </label>
                                         <input
@@ -723,11 +968,11 @@ const StudentRoster = () => {
                                             value={formData.address}
                                             onChange={handleChange}
                                             placeholder='e.g. 123 Learning Lane'
-                                            className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                                            className='w-full px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none'
                                         />
                                     </div>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                             City
                                         </label>
                                         <input
@@ -736,11 +981,11 @@ const StudentRoster = () => {
                                             value={formData.city}
                                             onChange={handleChange}
                                             placeholder='e.g. Kolkata'
-                                            className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                                            className='w-full px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none'
                                         />
                                     </div>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                             Pincode / Zip
                                         </label>
                                         <input
@@ -749,14 +994,14 @@ const StudentRoster = () => {
                                             value={formData.pincode}
                                             onChange={handleChange}
                                             placeholder='e.g. 700001'
-                                            className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                                            className='w-full px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none'
                                         />
                                     </div>
                                 </div>
 
-                                <div className='space-y-4 pt-4 border-t border-gray-100'>
+                                <div className='space-y-3 pt-3 border-t border-gray-100'>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                             Student Agreement URL
                                         </label>
                                         <div className='relative'>
@@ -771,12 +1016,12 @@ const StudentRoster = () => {
                                                 }
                                                 onChange={handleChange}
                                                 placeholder='https://drive.google.com/...'
-                                                className='w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                                                className='w-full pl-10 px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none'
                                             />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-700 mb-1'>
+                                        <label className='block text-xs sm:text-sm font-medium text-gray-700 mb-1'>
                                             Course Certificate URL
                                         </label>
                                         <div className='relative'>
@@ -789,25 +1034,25 @@ const StudentRoster = () => {
                                                 value={formData.certificateLink}
                                                 onChange={handleChange}
                                                 placeholder='https://drive.google.com/...'
-                                                className='w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                                                className='w-full pl-10 px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm outline-none'
                                             />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className='flex justify-end gap-3 p-6 border-t border-gray-100 bg-white shrink-0'>
+                            <div className='flex justify-end gap-3 p-4 sm:p-6 border-t border-gray-100 bg-white shrink-0'>
                                 <button
                                     type='button'
                                     onClick={handleCloseEditModal}
-                                    className='px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors'
+                                    className='px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50'
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type='submit'
                                     disabled={isSubmitting}
-                                    className='px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                                    className='px-5 py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50'
                                 >
                                     {isSubmitting
                                         ? 'Saving...'

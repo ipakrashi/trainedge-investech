@@ -18,7 +18,7 @@ import {
     FiDollarSign,
     FiCreditCard,
     FiMonitor,
-    FiFileText, // <-- Added for Exam Master
+    FiFileText,
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 
@@ -123,12 +123,21 @@ const Navbar = () => {
                                     <NavLink to='/leads' className={navClass}>
                                         Leads
                                     </NavLink>
+
+                                    {/* Visible only on large screens and above (lg:block, hidden on md and below) */}
                                     <NavLink
                                         to='/pipeline'
-                                        className={navClass}
+                                        className={({ isActive }) =>
+                                            `${
+                                                isActive
+                                                    ? 'text-blue-600 font-semibold'
+                                                    : 'text-gray-600 hover:text-blue-600 transition-colors'
+                                            } hidden lg:block py-2 md:py-0`
+                                        }
                                     >
                                         Pipeline
                                     </NavLink>
+
                                     <NavLink
                                         to='/demos/calendar'
                                         className={navClass}
@@ -353,13 +362,9 @@ const Navbar = () => {
                                 >
                                     Leads
                                 </NavLink>
-                                <NavLink
-                                    to='/pipeline'
-                                    onClick={toggleMenu}
-                                    className={navClass}
-                                >
-                                    Pipeline
-                                </NavLink>
+
+                                {/* Note: Pipeline intentionally omitted on small/mobile screens */}
+
                                 <NavLink
                                     to='/demos/calendar'
                                     onClick={toggleMenu}
