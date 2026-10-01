@@ -91,37 +91,42 @@ export const completeDemo = asyncHandler(async (req, res) => {
 		lead: session.lead._id,
 		performedBy: req.user._id,
 		type: 'NOTE',
-		summary: `Demo Marked Completed. Review solicitation email dispatched to client.`,
+		summary: `Demo Marked Completed. Review solicitation link generated.`,
 	})
 
 	await leadModel.findByIdAndUpdate(session.lead._id, {
 		status: 'DEMO_ATTENDED',
 	})
 
-	// Send Feedback Email to Client
-	const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
-	const feedbackUrl = `${frontendUrl}/feedback/${feedbackToken}`
-	const emailMessage = `
-        <h2>Hi ${session.lead.firstName || session.lead.fullName},</h2>
-        <p>Thank you for attending the demo session today!</p>
-        <p>We would love to hear your feedback so we can continue to improve.</p>
-        <br/>
-        <a href="${feedbackUrl}" style="padding:10px 20px; background-color:#2563eb; color:white; text-decoration:none; border-radius:5px;">Click Here to Provide Feedback</a>
-        <br/><br/>
-        <p><small>This link is unique to your session and can only be used once.</small></p>
-    `
-
-	try {
-		await sendEmail({
-			to: session.lead.email,
-			subject: 'How was your Demo Session?',
-			html: emailMessage,
-		})
-	} catch (err) {
-		console.error('Feedback email sending failed:', err)
-	}
-
+	// 1. Send HTTP response immediately so the UI never freezes
 	res.status(200).json({ success: true, data: session })
+
+	// 2. Dispatch email asynchronously in the background (non-blocking)
+	setImmediate(async () => {
+		try {
+			const frontendUrl =
+				process.env.FRONTEND_URL ||
+				'https://trainedge-investech.onrender.com'
+			const feedbackUrl = `${frontendUrl}/feedback/${feedbackToken}`
+			const emailMessage = `
+                <h2>Hi ${session.lead.firstName || session.lead.fullName},</h2>
+                <p>Thank you for attending the demo session today!</p>
+                <p>We would love to hear your feedback so we can continue to improve.</p>
+                <br/>
+                <a href="${feedbackUrl}" style="padding:10px 20px; background-color:#2563eb; color:white; text-decoration:none; border-radius:5px;">Click Here to Provide Feedback</a>
+                <br/><br/>
+                <p><small>This link is unique to your session and can only be used once.</small></p>
+            `
+
+			await sendEmail({
+				to: session.lead.email,
+				subject: 'How was your Demo Session?',
+				html: emailMessage,
+			})
+		} catch (err) {
+			console.error('Background feedback email sending failed:', err)
+		}
+	})
 })
 
 // ==========================================
