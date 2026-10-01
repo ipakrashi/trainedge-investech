@@ -14,22 +14,19 @@ api.interceptors.response.use(
 		return response
 	},
 	(error) => {
-		const requestUrl = error.config?.url || ''
-		const isPublicFeedbackRoute = requestUrl.includes('/feedback/')
+		// Bypass forced redirect for public feedback endpoints (Leads & Classes)
+        const requestUrl = error.config?.url || ''
+        const isPublicFeedbackRoute = requestUrl.includes('/demos/feedback/') || requestUrl.includes('/sessions/feedback/')
 
-		if (
-			error.response &&
-			error.response.status === 401 &&
-			!isPublicFeedbackRoute
-		) {
-			localStorage.removeItem('userInfo')
+        if (error.response && error.response.status === 401 && !isPublicFeedbackRoute) {
+            localStorage.removeItem('userInfo')
 
-			if (window.location.pathname !== '/login') {
-				window.location.href = '/login'
-			}
-		}
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login'
+            }
+        }
 
-		return Promise.reject(error)
+        return Promise.reject(error)
 	},
 )
 
