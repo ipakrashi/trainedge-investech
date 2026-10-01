@@ -1,156 +1,205 @@
-// src/components/demos/DemoFeedbackModal.jsx
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
-import { FiX, FiStar, FiMonitor, FiClock } from 'react-icons/fi'
+import {
+	FiX,
+	FiMonitor,
+	FiClock,
+	FiCheckCircle,
+	FiCopy,
+	FiCheck,
+	FiMessageCircle,
+} from 'react-icons/fi'
 
 const DemoFeedbackModal = ({ isOpen, onClose, session, onSuccess }) => {
-    const [rating, setRating] = useState(0)
-    const [hoverRating, setHoverRating] = useState(0)
-    const [comments, setComments] = useState('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
+	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [completedData, setCompletedData] = useState(null)
+	const [copied, setCopied] = useState(false)
 
-    useEffect(() => {
-        if (isOpen) {
-            setRating(0)
-            setHoverRating(0)
-            setComments('')
-        }
-    }, [isOpen])
+	useEffect(() => {
+		if (isOpen) {
+			setCompletedData(null)
+			setCopied(false)
+		}
+	}, [isOpen])
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
-        if (rating === 0) return alert('Please select a rating (1-5 stars).')
-        if (!comments.trim())
-            return alert('Please provide client feedback comments.')
+	if (!isOpen || !session) return null
 
-        try {
-            setIsSubmitting(true)
-            await api.put(`/demos/schedule/${session._id}/complete`, {
-                rating,
-                clientComments: comments,
-            })
-            onSuccess() // Triggers timeline refresh
-            onClose()
-        } catch (error) {
-            alert(
-                error.response?.data?.message ||
-                    'Failed to complete demo session.',
-            )
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
+	const frontendUrl =
+		import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'
+	const feedbackUrl = completedData?.feedbackToken
+		? `${frontendUrl}/feedback/${completedData.feedbackToken}`
+		: ''
+	const clientName =
+		session.lead?.fullName || session.lead?.firstName || 'Client'
+	const clientPhone = session.lead?.phone || ''
 
-    if (!isOpen || !session) return null
+	const handleComplete = async () => {
+		try {
+			setIsSubmitting(true)
+			const { data } = await api.put(
+				`/demos/schedule/${session._id}/complete`,
+			)
+			setCompletedData(data.data)
+			onSuccess() // Refreshes timeline/calendar
+		} catch (error) {
+			alert(
+				error.response?.data?.message ||
+					'Failed to complete demo session.',
+			)
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
 
-    return (
-        <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
-            <div className='bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col animate-fade-in-up'>
-                <div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl'>
-                    <h2 className='text-lg font-bold text-gray-900'>
-                        Demo Session Feedback
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className='text-gray-400 hover:text-gray-600 text-2xl'
-                    >
-                        <FiX />
-                    </button>
-                </div>
+	const handleCopy = () => {
+		navigator.clipboard.writeText(feedbackUrl)
+		setCopied(true)
+		setTimeout(() => setCopied(false), 2000)
+	}
 
-                <div className='p-6'>
-                    {/* Session Context Card */}
-                    <div className='bg-purple-50 rounded-lg p-4 mb-6 border border-purple-100'>
-                        <div className='flex items-center gap-2 font-semibold text-purple-900 mb-2'>
-                            <FiMonitor />{' '}
-                            {session.demoMaster?.title || 'Custom Walkthrough'}
-                        </div>
-                        <div className='text-sm text-purple-700 flex items-center gap-2'>
-                            <FiClock />
-                            {new Date(session.scheduledDate).toLocaleString(
-                                'en-IN',
-                                {
-                                    dateStyle: 'medium',
-                                    timeStyle: 'short',
-                                },
-                            )}
-                        </div>
-                    </div>
+	const handleWhatsAppShare = () => {
+		const message = encodeURIComponent(
+			`Hi ${clientName}, thank you for attending the demo session today! Please share your feedback with us here: ${feedbackUrl}`,
+		)
+		window.open(`https://wa.me/${clientPhone}?text=${message}`, '_blank')
+	}
 
-                    <form onSubmit={handleSubmit} className='space-y-6'>
-                        {/* Interactive Star Rating */}
-                        <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-2'>
-                                Client Satisfaction Rating *
-                            </label>
-                            <div className='flex items-center gap-2'>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                        type='button'
-                                        key={star}
-                                        onClick={() => setRating(star)}
-                                        onMouseEnter={() =>
-                                            setHoverRating(star)
-                                        }
-                                        onMouseLeave={() => setHoverRating(0)}
-                                        className='focus:outline-none transition-transform hover:scale-110'
-                                    >
-                                        <FiStar
-                                            size={28}
-                                            className={`${
-                                                (hoverRating || rating) >= star
-                                                    ? 'fill-amber-400 text-amber-400'
-                                                    : 'text-gray-300'
-                                            } transition-colors`}
-                                        />
-                                    </button>
-                                ))}
-                                <span className='ml-3 text-sm font-medium text-gray-500'>
-                                    {rating > 0
-                                        ? `${rating} / 5 Stars`
-                                        : 'Select rating'}
-                                </span>
-                            </div>
-                        </div>
+	const handleCloseModal = () => {
+		setCompletedData(null)
+		onClose()
+	}
 
-                        {/* Comments Textarea */}
-                        <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-2'>
-                                Client Remarks & Next Steps *
-                            </label>
-                            <textarea
-                                required
-                                rows='4'
-                                placeholder='Detail the client’s reaction, concerns, and agreed next steps...'
-                                value={comments}
-                                onChange={(e) => setComments(e.target.value)}
-                                className='w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-purple-500 focus:border-purple-500 outline-none resize-none'
-                            />
-                        </div>
+	return (
+		<div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
+			<div className='bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden'>
+				<div className='px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50'>
+					<h2 className='text-lg font-bold text-gray-900'>
+						{completedData
+							? 'Demo Completed & Link Generated'
+							: 'Complete Demo Session'}
+					</h2>
+					<button
+						onClick={handleCloseModal}
+						className='text-gray-400 hover:text-gray-600 text-2xl'
+					>
+						<FiX />
+					</button>
+				</div>
 
-                        <div className='flex justify-end gap-3 pt-2'>
-                            <button
-                                type='button'
-                                onClick={onClose}
-                                className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type='submit'
-                                disabled={isSubmitting}
-                                className='px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm'
-                            >
-                                {isSubmitting
-                                    ? 'Saving...'
-                                    : 'Save Feedback & Complete'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    )
+				<div className='p-6 space-y-6'>
+					{/* Session Context Card */}
+					<div className='bg-purple-50 rounded-lg p-4 border border-purple-100'>
+						<div className='flex items-center gap-2 font-semibold text-purple-900 mb-2'>
+							<FiMonitor />{' '}
+							{session.demoMaster?.title || 'Custom Walkthrough'}
+						</div>
+						<div className='text-sm text-purple-700 flex items-center gap-2'>
+							<FiClock />
+							{new Date(session.scheduledDate).toLocaleString(
+								'en-IN',
+								{
+									dateStyle: 'medium',
+									timeStyle: 'short',
+								},
+							)}
+						</div>
+					</div>
+
+					{!completedData ? (
+						<div className='space-y-6'>
+							<p className='text-sm text-gray-600'>
+								Marking this demo as complete will automatically
+								dispatch a secure review solicitation email to{' '}
+								<strong>{clientName}</strong> (
+								{session.lead?.email || 'No email'}).
+							</p>
+
+							<div className='flex justify-end gap-3 pt-2'>
+								<button
+									type='button'
+									onClick={handleCloseModal}
+									className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
+								>
+									Cancel
+								</button>
+								<button
+									type='button'
+									onClick={handleComplete}
+									disabled={isSubmitting}
+									className='px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm flex items-center gap-2'
+								>
+									<FiCheckCircle />
+									{isSubmitting
+										? 'Processing...'
+										: 'Mark Complete & Send Email'}
+								</button>
+							</div>
+						</div>
+					) : (
+						<div className='space-y-5'>
+							<div className='bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-1'>
+								<FiCheckCircle className='mx-auto h-8 w-8 text-green-600 mb-2' />
+								<h4 className='font-bold text-green-900'>
+									Demo Marked Complete Successfully!
+								</h4>
+								<p className='text-xs text-green-700'>
+									Review solicitation email has been
+									dispatched to the client. You can also share
+									the direct link via WhatsApp below as a
+									backup.
+								</p>
+							</div>
+
+							<div className='space-y-2'>
+								<label className='block text-xs font-bold text-gray-700 uppercase tracking-wider'>
+									Generated WhatsApp Feedback Link
+								</label>
+								<div className='flex items-center gap-2'>
+									<input
+										type='text'
+										readOnly
+										value={feedbackUrl}
+										className='w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-600 outline-none'
+									/>
+									<button
+										onClick={handleCopy}
+										className='flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors'
+									>
+										{copied ? (
+											<FiCheck className='text-green-600' />
+										) : (
+											<FiCopy />
+										)}
+										{copied ? 'Copied' : 'Copy'}
+									</button>
+								</div>
+
+								{clientPhone && (
+									<button
+										onClick={handleWhatsAppShare}
+										className='w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors shadow-sm mt-3'
+									>
+										<FiMessageCircle className='h-5 w-5' />
+										Send via WhatsApp Now
+									</button>
+								)}
+							</div>
+
+							<div className='flex justify-end pt-3'>
+								<button
+									type='button'
+									onClick={handleCloseModal}
+									className='px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm'
+								>
+									Done
+								</button>
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+		</div>
+	)
 }
 
 export default DemoFeedbackModal

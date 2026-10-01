@@ -70,17 +70,17 @@ export const scheduleDemo = asyncHandler(async (req, res) => {
 	res.status(201).json({ success: true, data: session })
 })
 
+// ==========================================
 export const completeDemo = asyncHandler(async (req, res) => {
-	const { rating, clientComments } = req.body
 	const feedbackToken = crypto.randomBytes(32).toString('hex')
 
 	const session = await demoSessionModel
 		.findByIdAndUpdate(
 			req.params.id,
-			{ status: 'COMPLETED', rating, clientComments, feedbackToken },
+			{ status: 'COMPLETED', feedbackToken },
 			{ new: true },
 		)
-		.populate('lead', 'firstName fullName email')
+		.populate('lead', 'firstName fullName email phone')
 
 	if (!session) {
 		res.status(404)
@@ -91,15 +91,16 @@ export const completeDemo = asyncHandler(async (req, res) => {
 		lead: session.lead._id,
 		performedBy: req.user._id,
 		type: 'NOTE',
-		summary: `Demo Marked Completed. Feedback link dispatched to client.`,
+		summary: `Demo Marked Completed. Review solicitation email dispatched to client.`,
 	})
 
 	await leadModel.findByIdAndUpdate(session.lead._id, {
 		status: 'DEMO_ATTENDED',
 	})
 
-	// Send Feedback Email
-	const feedbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/feedback/${feedbackToken}`
+	// Send Feedback Email to Client
+	const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+	const feedbackUrl = `${frontendUrl}/feedback/${feedbackToken}`
 	const emailMessage = `
         <h2>Hi ${session.lead.firstName || session.lead.fullName},</h2>
         <p>Thank you for attending the demo session today!</p>
