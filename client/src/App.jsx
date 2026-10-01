@@ -27,93 +27,96 @@ import ExamManagement from './pages/admin/ExamManagement'
 import ManageDemoMaster from './pages/admin/ManageDemoMaster'
 import DemoCalendar from './pages/demos/DemoCalendar'
 
+import ClientFeedback from './pages/feedback/ClientFeedback'
+
 const App = () => {
-    return (
-        <BrowserRouter>
-            <Routes>
-                {/* PUBLIC ROUTE */}
-                <Route path='/login' element={<LoginUser />} />
+	return (
+		<BrowserRouter>
+			<Routes>
+				{/* PUBLIC ROUTE */}
+				<Route path='/login' element={<LoginUser />} />
+				<Route path='/feedback/:token' element={<ClientFeedback />} />
 
-                {/* PROTECTED ROUTES */}
-                <Route element={<ProtectedRoute />}>
-                    {/* The UI Layout (Navbar + Footer) */}
-                    <Route path='/' element={<UserLayout />}>
-                        <Route index element={<Dashboard />} />
-                        <Route path='/leads' element={<Leads />} />
-                        <Route path='/pipeline' element={<Pipeline />} />
-                        <Route path='/reports' element={<Reports />} />
-                        <Route path='/students' element={<StudentRoster />} />
+				{/* PROTECTED ROUTES */}
+				<Route element={<ProtectedRoute />}>
+					{/* The UI Layout (Navbar + Footer) */}
+					<Route path='/' element={<UserLayout />}>
+						<Route index element={<Dashboard />} />
+						<Route path='/leads' element={<Leads />} />
+						<Route path='/pipeline' element={<Pipeline />} />
+						<Route path='/reports' element={<Reports />} />
+						<Route path='/students' element={<StudentRoster />} />
 
-                        {/* --- NEW: SALES/ADMIN DEMO CALENDAR --- */}
-                        <Route
-                            path='/demos/calendar'
-                            element={<DemoCalendar />}
-                        />
+						{/* --- NEW: SALES/ADMIN DEMO CALENDAR --- */}
+						<Route
+							path='/demos/calendar'
+							element={<DemoCalendar />}
+						/>
 
-                        {/* ADMIN & FACULTY ROUTES */}
-                        <Route path='/batches' element={<BatchesOverview />} />
-                        <Route
-                            path='/batches/:batchId'
-                            element={<BatchDetail />}
-                        />
+						{/* ADMIN & FACULTY ROUTES */}
+						<Route path='/batches' element={<BatchesOverview />} />
+						<Route
+							path='/batches/:batchId'
+							element={<BatchDetail />}
+						/>
 
-                        {/* ADMIN ROUTES */}
-                        <Route element={<AdminRoute />}>
-                            <Route
-                                path='/admin/users'
-                                element={<UserManagement />}
-                            />
-                            <Route
-                                path='/admin/courses'
-                                element={<CourseManagement />}
-                            />
-                            <Route
-                                path='/admin/roles'
-                                element={<RoleManagement />}
-                            />
-                            <Route
-                                path='/admin/sources'
-                                element={<ManageSources />}
-                            />
-                            <Route
-                                path='/admin/statuses'
-                                element={<ManageStatuses />}
-                            />
-                            <Route
-                                path='/admin/experiences'
-                                element={<ManageExperiences />}
-                            />
-                            <Route
-                                path='/admin/reassign'
-                                element={<ReassignLeads />}
-                            />
-                            <Route
-                                path='/admin/pending-students'
-                                element={<PendingStudents />}
-                            />
-                            <Route
-                                path='/admin/payments'
-                                element={<PaymentManagement />}
-                            />
-                            <Route
-                                path='/admin/payment-modes'
-                                element={<ManagePaymentModes />}
-                            />
-                            <Route
-                                path='/admin/exams'
-                                element={<ExamManagement />}
-                            />
-                            {/* --- NEW: ADMIN DEMO MASTER --- */}
-                            <Route
-                                path='/admin/demo-master'
-                                element={<ManageDemoMaster />}
-                            />
-                        </Route>
-                    </Route>
-                </Route>
-            </Routes>
-        </BrowserRouter>
-    )
+						{/* ADMIN ROUTES */}
+						<Route element={<AdminRoute />}>
+							<Route
+								path='/admin/users'
+								element={<UserManagement />}
+							/>
+							<Route
+								path='/admin/courses'
+								element={<CourseManagement />}
+							/>
+							<Route
+								path='/admin/roles'
+								element={<RoleManagement />}
+							/>
+							<Route
+								path='/admin/sources'
+								element={<ManageSources />}
+							/>
+							<Route
+								path='/admin/statuses'
+								element={<ManageStatuses />}
+							/>
+							<Route
+								path='/admin/experiences'
+								element={<ManageExperiences />}
+							/>
+							<Route
+								path='/admin/reassign'
+								element={<ReassignLeads />}
+							/>
+							<Route
+								path='/admin/pending-students'
+								element={<PendingStudents />}
+							/>
+							<Route
+								path='/admin/payments'
+								element={<PaymentManagement />}
+							/>
+							<Route
+								path='/admin/payment-modes'
+								element={<ManagePaymentModes />}
+							/>
+							<Route
+								path='/admin/exams'
+								element={<ExamManagement />}
+							/>
+							{/* --- NEW: ADMIN DEMO MASTER --- */}
+							<Route
+								path='/admin/demo-master'
+								element={<ManageDemoMaster />}
+							/>
+						</Route>
+					</Route>
+				</Route>
+			</Routes>
+		</BrowserRouter>
+	)
 }
 
 export default App
