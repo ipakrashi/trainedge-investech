@@ -9,57 +9,57 @@ import userModel from '../models/userModel.js'
 // @access  Private/Admin
 // ==========================================
 const addUser = asyncHandler(async (req, res) => {
-    const {
-        image,
-        firstName,
-        lastName,
-        email,
-        password,
-        role,
-        address,
-        city,
-        pincode,
-        phone,
-    } = req.body
+	const {
+		image,
+		firstName,
+		lastName,
+		email,
+		password,
+		role,
+		address,
+		city,
+		pincode,
+		phone,
+	} = req.body
 
-    // 1. Validate required schema invariants
-    if (!firstName || !lastName || !email || !password || !role) {
-        res.status(400)
-        throw new Error(
-            'First name, last name, email, password, and role are required',
-        )
-    }
+	// 1. Validate required schema invariants
+	if (!firstName || !lastName || !email || !password || !role) {
+		res.status(400)
+		throw new Error(
+			'First name, last name, email, password, and role are required',
+		)
+	}
 
-    // 2. Prevent duplicate user registrations
-    const userExists = await userModel.findOne({ email })
-    if (userExists) {
-        res.status(400)
-        throw new Error('User already exists with this email')
-    }
+	// 2. Prevent duplicate user registrations
+	const userExists = await userModel.findOne({ email })
+	if (userExists) {
+		res.status(400)
+		throw new Error('User already exists with this email')
+	}
 
-    // 3. Cryptographic hash before storage
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password, salt)
+	// 3. Cryptographic hash before storage
+	const salt = await bcrypt.genSalt(10)
+	const hashedPassword = await bcrypt.hash(password, salt)
 
-    // 4. Persistence
-    const user = await userModel.create({
-        firstName,
-        lastName,
-        email,
-        password: hashedPassword,
-        role,
-        image,
-        address,
-        city,
-        pincode,
-        phone,
-    })
+	// 4. Persistence
+	const user = await userModel.create({
+		firstName,
+		lastName,
+		email,
+		password: hashedPassword,
+		role,
+		image,
+		address,
+		city,
+		pincode,
+		phone,
+	})
 
-    // 5. RESTful 201 Created response (password omitted via schema toJSON transform)
-    res.status(201).json({
-        success: true,
-        data: user,
-    })
+	// 5. RESTful 201 Created response (password omitted via schema toJSON transform)
+	res.status(201).json({
+		success: true,
+		data: user,
+	})
 })
 
 // ==========================================
@@ -68,14 +68,14 @@ const addUser = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 // ==========================================
 const getUsers = asyncHandler(async (req, res) => {
-    // Return empty array with 200 OK if no records exist (standard REST practice)
-    const users = await userModel.find({}).populate('role')
+	// Return empty array with 200 OK if no records exist (standard REST practice)
+	const users = await userModel.find({}).populate('role')
 
-    res.status(200).json({
-        success: true,
-        count: users.length,
-        data: users,
-    })
+	res.status(200).json({
+		success: true,
+		count: users.length,
+		data: users,
+	})
 })
 
 // ==========================================
@@ -84,69 +84,69 @@ const getUsers = asyncHandler(async (req, res) => {
 // @access  Public
 // ==========================================
 const loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body
+	const { email, password } = req.body
 
-    if (!email || !password) {
-        res.status(400)
-        throw new Error('Please provide email and password')
-    }
+	if (!email || !password) {
+		res.status(400)
+		throw new Error('Please provide email and password')
+	}
 
-    // Explicitly demand the password hash (hidden by select: false in schema)
-    const user = await userModel
-        .findOne({ email })
-        .select('+password')
-        .populate('role')
+	// Explicitly demand the password hash (hidden by select: false in schema)
+	const user = await userModel
+		.findOne({ email })
+		.select('+password')
+		.populate('role')
 
-    if (user && (await bcrypt.compare(password, user.password))) {
-        // --- STRICT CONCURRENCY BLOCKER ---
-        const SESSION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
-        if (
-            user.lastLogin &&
-            Date.now() - user.lastLogin.getTime() < SESSION_TIMEOUT_MS
-        ) {
-            res.status(403)
-            throw new Error(
-                'An active session exists on another device. Please log out there, or wait 15 minutes for it to expire.',
-            )
-        }
+	if (user && (await bcrypt.compare(password, user.password))) {
+		// --- STRICT CONCURRENCY BLOCKER ---
+		const SESSION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
+		if (
+			user.lastLogin &&
+			Date.now() - user.lastLogin.getTime() < SESSION_TIMEOUT_MS
+		) {
+			res.status(403)
+			throw new Error(
+				'An active session exists on another device. Please log out there, or wait 15 minutes for it to expire.',
+			)
+		}
 
-        // Increment version to revoke prior active tokens & update heartbeat
-        user.tokenVersion = (user.tokenVersion || 0) + 1
-        user.lastLogin = new Date()
-        await user.save()
+		// Increment version to revoke prior active tokens & update heartbeat
+		user.tokenVersion = (user.tokenVersion || 0) + 1
+		user.lastLogin = new Date()
+		await user.save()
 
-        // Generate JWT payload
-        const roleName = user.role?.name || 'user'
-        const token = jwt.sign(
-            {
-                userId: user._id,
-                role: roleName,
-                tokenVersion: user.tokenVersion,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '1d' },
-        )
+		// Generate JWT payload
+		const roleName = user.role?.name || 'user'
+		const token = jwt.sign(
+			{
+				userId: user._id,
+				role: roleName,
+				tokenVersion: user.tokenVersion,
+			},
+			process.env.JWT_SECRET,
+			{ expiresIn: '1d' },
+		)
 
-        // Set hardened HTTP-Only Cookie
-        res.cookie('jwt', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
-        })
+		// Set hardened HTTP-Only Cookie
+		res.cookie('jwt', token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+		})
 
-        res.status(200).json({
-            _id: user._id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            role: roleName,
-        })
-    } else {
-        res.status(401)
-        throw new Error('Invalid email or password')
-    }
+		res.status(200).json({
+			_id: user._id,
+			firstName: user.firstName,
+			lastName: user.lastName,
+			name: `${user.firstName} ${user.lastName}`,
+			email: user.email,
+			role: roleName,
+		})
+	} else {
+		res.status(401)
+		throw new Error('Invalid email or password')
+	}
 })
 
 // ==========================================
@@ -155,37 +155,37 @@ const loginUser = asyncHandler(async (req, res) => {
 // @access  Public / Authenticated
 // ==========================================
 const logoutUser = asyncHandler(async (req, res) => {
-    const token = req.cookies.jwt
+	const token = req.cookies.jwt
 
-    if (token) {
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET)
-            const targetId = decoded.userId || decoded.id
+	if (token) {
+		try {
+			const decoded = jwt.verify(token, process.env.JWT_SECRET)
+			const targetId = decoded.userId || decoded.id
 
-            // Invalidate session immediately:
-            // 1. Reset lastLogin to epoch (frees concurrency lock)
-            // 2. Increment tokenVersion (revokes copied token server-side)
-            await userModel.findByIdAndUpdate(targetId, {
-                $set: { lastLogin: new Date(0) },
-                $inc: { tokenVersion: 1 },
-            })
-        } catch {
-            // If token expired or is malformed, proceed to clear client cookie
-        }
-    }
+			// Invalidate session immediately:
+			// 1. Reset lastLogin to epoch (frees concurrency lock)
+			// 2. Increment tokenVersion (revokes copied token server-side)
+			await userModel.findByIdAndUpdate(targetId, {
+				$set: { lastLogin: new Date(0) },
+				$inc: { tokenVersion: 1 },
+			})
+		} catch {
+			// If token expired or is malformed, proceed to clear client cookie
+		}
+	}
 
-    // Flags MUST mirror loginUser for the browser to match and purge the cookie
-    res.cookie('jwt', '', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        expires: new Date(0),
-    })
+	// Flags MUST mirror loginUser for the browser to match and purge the cookie
+	res.cookie('jwt', '', {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === 'production',
+		sameSite: 'strict',
+		expires: new Date(0),
+	})
 
-    res.status(200).json({
-        success: true,
-        message: 'User logged out successfully',
-    })
+	res.status(200).json({
+		success: true,
+		message: 'User logged out successfully',
+	})
 })
 
 // ==========================================
@@ -194,49 +194,53 @@ const logoutUser = asyncHandler(async (req, res) => {
 // @access  Private (Self or Admin)
 // ==========================================
 const editUser = asyncHandler(async (req, res) => {
-    const currentRoleName = req.user?.role?.name?.toLowerCase()
-    const isSelf = req.user?._id?.toString() === req.params.id
+	const currentRoleName = req.user?.role?.name?.toLowerCase()
+	const isSelf = req.user?._id?.toString() === req.params.id
 
-    // Authorization: User can update own profile, only admin can update others
-    if (currentRoleName !== 'admin' && !isSelf) {
-        res.status(403)
-        throw new Error('Not authorized to edit this profile')
-    }
+	// Authorization: User can update own profile, only admin can update others
+	if (currentRoleName !== 'admin' && !isSelf) {
+		res.status(403)
+		throw new Error('Not authorized to edit this profile')
+	}
 
-    const user = await userModel.findById(req.params.id)
-    if (!user) {
-        res.status(404)
-        throw new Error('User not found')
-    }
+	const user = await userModel.findById(req.params.id)
+	if (!user) {
+		res.status(404)
+		throw new Error('User not found')
+	}
 
-    // Editable basic fields
-    user.firstName = req.body.firstName || user.firstName
-    user.lastName = req.body.lastName || user.lastName
-    user.email = req.body.email || user.email
-    user.image = req.body.image || user.image
-    user.address = req.body.address || user.address
-    user.city = req.body.city || user.city
-    user.pincode = req.body.pincode || user.pincode
-    user.phone = req.body.phone || user.phone
+	// Editable basic fields
+	user.firstName = req.body.firstName || user.firstName
+	user.lastName = req.body.lastName || user.lastName
+	user.email = req.body.email || user.email
+	user.image = req.body.image || user.image
+	user.address = req.body.address || user.address
+	user.city = req.body.city || user.city
+	user.pincode = req.body.pincode || user.pincode
+	user.phone = req.body.phone || user.phone
 
-    // Privileged fields: Only Admin can change roles or toggle active status
-    if (currentRoleName === 'admin') {
-        if (req.body.role) user.role = req.body.role
-        if (req.body.isActive !== undefined) user.isActive = req.body.isActive
-    }
+	// Privileged fields: Only Admin can change roles or toggle active status
+	if (currentRoleName === 'admin') {
+		if (req.body.role) user.role = req.body.role
+		if (req.body.isActive !== undefined) user.isActive = req.body.isActive
+		if (req.body.forceLogout) {
+			user.tokenVersion = (user.tokenVersion || 0) + 1
+			user.lastLogin = new Date(0)
+		}
+	}
 
-    // Password reset update
-    if (req.body.password) {
-        const salt = await bcrypt.genSalt(10)
-        user.password = await bcrypt.hash(req.body.password, salt)
-    }
+	// Password reset update
+	if (req.body.password) {
+		const salt = await bcrypt.genSalt(10)
+		user.password = await bcrypt.hash(req.body.password, salt)
+	}
 
-    const updatedUser = await user.save()
+	const updatedUser = await user.save()
 
-    res.status(200).json({
-        success: true,
-        data: updatedUser,
-    })
+	res.status(200).json({
+		success: true,
+		data: updatedUser,
+	})
 })
 
 // ==========================================
@@ -245,19 +249,19 @@ const editUser = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 // ==========================================
 const deleteUser = asyncHandler(async (req, res) => {
-    const user = await userModel.findById(req.params.id)
+	const user = await userModel.findById(req.params.id)
 
-    if (!user) {
-        res.status(404)
-        throw new Error('User not found')
-    }
+	if (!user) {
+		res.status(404)
+		throw new Error('User not found')
+	}
 
-    await user.deleteOne()
+	await user.deleteOne()
 
-    res.status(200).json({
-        success: true,
-        message: 'User removed successfully',
-    })
+	res.status(200).json({
+		success: true,
+		message: 'User removed successfully',
+	})
 })
 
 // ==========================================
@@ -266,33 +270,33 @@ const deleteUser = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 // ==========================================
 const getRoles = asyncHandler(async (req, res) => {
-    // Populate the distinct role references so frontend receives full role details
-    const roleIds = await userModel.distinct('role')
-    const usersWithRoles = await userModel
-        .find({ role: { $in: roleIds } })
-        .populate('role')
-        .select('role')
+	// Populate the distinct role references so frontend receives full role details
+	const roleIds = await userModel.distinct('role')
+	const usersWithRoles = await userModel
+		.find({ role: { $in: roleIds } })
+		.populate('role')
+		.select('role')
 
-    // Extract deduplicated role objects
-    const uniqueRolesMap = new Map()
-    usersWithRoles.forEach((u) => {
-        if (u.role && !uniqueRolesMap.has(u.role._id.toString())) {
-            uniqueRolesMap.set(u.role._id.toString(), u.role)
-        }
-    })
+	// Extract deduplicated role objects
+	const uniqueRolesMap = new Map()
+	usersWithRoles.forEach((u) => {
+		if (u.role && !uniqueRolesMap.has(u.role._id.toString())) {
+			uniqueRolesMap.set(u.role._id.toString(), u.role)
+		}
+	})
 
-    res.status(200).json({
-        success: true,
-        data: Array.from(uniqueRolesMap.values()),
-    })
+	res.status(200).json({
+		success: true,
+		data: Array.from(uniqueRolesMap.values()),
+	})
 })
 
 export {
-    addUser,
-    getUsers,
-    loginUser,
-    logoutUser,
-    editUser,
-    deleteUser,
-    getRoles,
+	addUser,
+	getUsers,
+	loginUser,
+	logoutUser,
+	editUser,
+	deleteUser,
+	getRoles,
 }
