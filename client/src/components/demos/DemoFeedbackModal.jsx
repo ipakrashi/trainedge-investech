@@ -25,7 +25,9 @@ const DemoFeedbackModal = ({ isOpen, onClose, session, onSuccess }) => {
 	if (!isOpen || !session) return null
 
 	const frontendUrl =
-		import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'
+		typeof window !== 'undefined'
+			? window.location.origin
+			: 'https://trainedge-investech.onrender.com'
 	const feedbackUrl = completedData?.feedbackToken
 		? `${frontendUrl}/feedback/${completedData.feedbackToken}`
 		: ''
