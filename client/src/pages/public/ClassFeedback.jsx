@@ -24,7 +24,7 @@ const ClassFeedback = () => {
 		setErrorMessage('')
 
 		try {
-			await api.post(`/demos/feedback/${token}`, {
+			await api.post(`/sessions/feedback/${token}`, {
 				rating,
 				comments,
 			})

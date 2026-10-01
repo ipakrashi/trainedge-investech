@@ -4,7 +4,10 @@ import { protect } from '../middlewares/authMiddleware.js'
 
 const router = express.Router()
 
-// Apply protect middleware to all routes
+// 1. PUBLIC ROUTE - Must go BEFORE router.use(protect)
+router.post('/feedback/:token', sessionLogController.submitClassFeedback)
+
+// 2. GLOBAL AUTH BLOCK - Applies to all routes below this line
 router.use(protect)
 
 // POST /api/sessions
