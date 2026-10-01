@@ -17,4 +17,3 @@ router.post('/', sessionLogController.createSessionLog)
 router.get('/batch/:batchId', sessionLogController.getBatchSessions)
 
 export default router
-// ==========
