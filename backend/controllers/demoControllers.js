@@ -141,13 +141,17 @@ export const submitClientFeedback = asyncHandler(async (req, res) => {
 	const session = await demoSessionModel.findOne({ feedbackToken: token })
 
 	if (!session) {
-		res.status(404)
-		throw new Error('Invalid feedback link.')
+		return res.status(404).json({
+			success: false,
+			message: 'Invalid or expired feedback link.',
+		})
 	}
 
 	if (session.feedbackTokenUsed) {
-		res.status(400)
-		throw new Error('Feedback has already been submitted for this session.')
+		return res.status(400).json({
+			success: false,
+			message: 'Feedback has already been submitted for this session.',
+		})
 	}
 
 	session.rating = rating
@@ -158,13 +162,13 @@ export const submitClientFeedback = asyncHandler(async (req, res) => {
 	// Notify Sales Counselor via Activity Timeline
 	await leadActivityModel.create({
 		lead: session.lead,
-		performedBy: session.assignedTo, // Proxying the assignment to avoid null errors
+		performedBy: session.assignedTo || session.createdBy,
 		type: 'NOTE',
 		summary: `⭐ Client Feedback Received: ${rating}/5 Stars. Comments: "${clientComments || 'None provided'}"`,
 		details: { demoSessionId: session._id },
 	})
 
-	res.status(200).json({
+	return res.status(200).json({
 		success: true,
 		message: 'Feedback submitted successfully.',
 	})
