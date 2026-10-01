@@ -28,6 +28,7 @@ import ManageDemoMaster from './pages/admin/ManageDemoMaster'
 import DemoCalendar from './pages/demos/DemoCalendar'
 
 import ClientFeedback from './pages/feedback/ClientFeedback'
+import ClassFeedback from './pages/public/ClassFeedback'
 
 const App = () => {
 	return (
@@ -36,6 +37,10 @@ const App = () => {
 				{/* PUBLIC ROUTE */}
 				<Route path='/login' element={<LoginUser />} />
 				<Route path='/feedback/:token' element={<ClientFeedback />} />
+				<Route
+					path='/class-feedback/:token'
+					element={<ClassFeedback />}
+				/>
 
 				{/* PROTECTED ROUTES */}
 				<Route element={<ProtectedRoute />}>

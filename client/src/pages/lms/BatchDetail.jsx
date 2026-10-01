@@ -14,6 +14,7 @@ import {
     FiCheck,
     FiMail,
     FiPhone,
+    FiMessageCircle, // Added icon
 } from 'react-icons/fi'
 
 const BatchDetail = () => {
@@ -341,6 +342,21 @@ const BatchDetail = () => {
         )
     if (!batch) return null
 
+    // --- ADD THE WHATSAPP FUNCTION HERE ---
+    const handleWhatsAppClassShare = (studentPhone, studentName, token) => {
+        const frontendUrl =
+            typeof window !== 'undefined'
+                ? window.location.origin
+                : 'https://trainedge-investech.onrender.com'
+        const feedbackUrl = `${frontendUrl}/class-feedback/${token}`
+
+        const message = encodeURIComponent(
+            `Hi ${studentName}, please share your feedback on today's class: ${feedbackUrl}`,
+        )
+        window.open(`https://wa.me/${studentPhone}?text=${message}`, '_blank')
+    }
+    // ================================
+
     return (
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
             <button
@@ -612,44 +628,79 @@ const BatchDetail = () => {
                             </div>
                         ) : (
                             <div className='space-y-4'>
+                                {/* --- UPDATED SESSION CARDS WITH WHATSAPP BUTTONS --- */}
                                 {sessions.map((session, index) => (
                                     <div
                                         key={session._id}
-                                        className='bg-white border border-gray-100 shadow-sm rounded-lg p-4 sm:p-5 flex flex-col md:flex-row gap-4'
+                                        className='bg-white border border-gray-100 shadow-sm rounded-lg p-4 sm:p-5 flex flex-col gap-4'
                                     >
-                                        <div className='bg-blue-50 text-blue-700 rounded-lg p-3 text-center min-w-[100px] flex md:flex-col justify-between items-center md:justify-center'>
-                                            <div className='text-[10px] sm:text-xs uppercase font-bold tracking-wider'>
-                                                Session{' '}
-                                                {sessions.length - index}
+                                        {/* Top Row: Original Session Details */}
+                                        <div className='flex flex-col md:flex-row gap-4'>
+                                            <div className='bg-blue-50 text-blue-700 rounded-lg p-3 text-center min-w-[100px] flex md:flex-col justify-between items-center md:justify-center'>
+                                                <div className='text-[10px] sm:text-xs uppercase font-bold tracking-wider'>
+                                                    Session{' '}
+                                                    {sessions.length - index}
+                                                </div>
+                                                <div className='text-base sm:text-lg font-black'>
+                                                    {new Date(
+                                                        session.sessionDate,
+                                                    ).toLocaleDateString('en-IN', {
+                                                        day: '2-digit',
+                                                        month: 'short',
+                                                    })}
+                                                </div>
                                             </div>
-                                            <div className='text-base sm:text-lg font-black'>
-                                                {new Date(
-                                                    session.sessionDate,
-                                                ).toLocaleDateString('en-IN', {
-                                                    day: '2-digit',
-                                                    month: 'short',
-                                                })}
+                                            <div className='flex-grow'>
+                                                <h4 className='text-xs sm:text-sm font-bold text-gray-900 mb-1'>
+                                                    Topics Covered:
+                                                </h4>
+                                                <p className='text-xs sm:text-sm text-gray-600 whitespace-pre-wrap leading-relaxed'>
+                                                    {session.topicsCovered}
+                                                </p>
+                                            </div>
+                                            <div className='text-xs text-gray-500 md:text-right flex md:flex-col justify-between items-center md:items-end border-t md:border-t-0 pt-2 md:pt-0'>
+                                                <div className='flex items-center mb-1'>
+                                                    <FiClock className='mr-1' />{' '}
+                                                    {session.durationMinutes} mins
+                                                </div>
+                                                <div className='font-medium bg-green-50 text-green-700 px-2 py-0.5 rounded'>
+                                                    Attendance:{' '}
+                                                    {session.attendance?.length} /{' '}
+                                                    {batch.students?.length}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className='flex-grow'>
-                                            <h4 className='text-xs sm:text-sm font-bold text-gray-900 mb-1'>
-                                                Topics Covered:
-                                            </h4>
-                                            <p className='text-xs sm:text-sm text-gray-600 whitespace-pre-wrap leading-relaxed'>
-                                                {session.topicsCovered}
-                                            </p>
-                                        </div>
-                                        <div className='text-xs text-gray-500 md:text-right flex md:flex-col justify-between items-center md:items-end border-t md:border-t-0 pt-2 md:pt-0'>
-                                            <div className='flex items-center mb-1'>
-                                                <FiClock className='mr-1' />{' '}
-                                                {session.durationMinutes} mins
+
+                                        {/* Bottom Row: NEW WhatsApp Feedback Links */}
+                                        {session.studentFeedbacks && session.studentFeedbacks.length > 0 && (
+                                            <div className='pt-3 border-t border-gray-100 w-full'>
+                                                <h4 className='text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2'>
+                                                    Request WhatsApp Feedback
+                                                </h4>
+                                                <div className='flex flex-wrap gap-2'>
+                                                    {session.studentFeedbacks.map((feedback) => (
+                                                        <button
+                                                            key={feedback._id}
+                                                            onClick={() => handleWhatsAppClassShare(
+                                                                feedback.student?.phone,
+                                                                feedback.student?.fullName,
+                                                                feedback.feedbackToken
+                                                            )}
+                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold border transition-colors ${
+                                                                feedback.isSubmitted 
+                                                                    ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-default' 
+                                                                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm'
+                                                            }`}
+                                                            disabled={feedback.isSubmitted}
+                                                            title={feedback.isSubmitted ? 'Feedback already received' : 'Send WhatsApp Link'}
+                                                        >
+                                                            {feedback.isSubmitted ? <FiCheck size={14} /> : <FiMessageCircle size={14} />}
+                                                            {feedback.student?.fullName || 'Student'}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className='font-medium bg-green-50 text-green-700 px-2 py-0.5 rounded'>
-                                                Attendance:{' '}
-                                                {session.attendance?.length} /{' '}
-                                                {batch.students?.length}
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
