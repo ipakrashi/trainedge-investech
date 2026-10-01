@@ -14,9 +14,8 @@ api.interceptors.response.use(
 		return response
 	},
 	(error) => {
-		// Bypass forced redirect for public feedback endpoints
 		const requestUrl = error.config?.url || ''
-		const isPublicFeedbackRoute = requestUrl.includes('/demos/feedback/')
+		const isPublicFeedbackRoute = requestUrl.includes('/feedback/')
 
 		if (
 			error.response &&
