@@ -299,6 +299,12 @@ const Navbar = () => {
 															label='Manage Experiences'
 															colorClass='purple'
 														/>
+														<MegaMenuLink
+															to='/admin/channel-partners'
+															icon={FiBriefcase}
+															label='Manage Partners'
+															colorClass='purple'
+														/>
 													</div>
 												</div>
 											</div>
@@ -419,6 +425,13 @@ const Navbar = () => {
 										Controls & Finance
 									</span>
 								</div>
+								<Link
+									to='/admin/channel-partners'
+									onClick={toggleMenu}
+									className='flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors'
+								>
+									<FiBriefcase /> Manage Partners
+								</Link>
 								<Link
 									to='/admin/payments'
 									onClick={toggleMenu}

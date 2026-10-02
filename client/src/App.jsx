@@ -30,6 +30,7 @@ import DemoCalendar from './pages/demos/DemoCalendar'
 import ClientFeedback from './pages/feedback/ClientFeedback'
 import ClassFeedback from './pages/public/ClassFeedback'
 import PartnerPayouts from './pages/admin/PartnerPayouts'
+import ChannelPartnerManagement from './pages/admin/ChannelPartnerManagement'
 
 const App = () => {
 	return (
@@ -120,6 +121,10 @@ const App = () => {
 							<Route
 								path='/admin/partner-payouts'
 								element={<PartnerPayouts />}
+							/>
+							<Route
+								path='/admin/channel-partners'
+								element={<ChannelPartnerManagement />}
 							/>
 						</Route>
 					</Route>
