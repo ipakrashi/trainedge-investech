@@ -19,6 +19,7 @@ import {
 	FiCreditCard,
 	FiMonitor,
 	FiFileText,
+	FiBriefcase,
 } from 'react-icons/fi'
 import LogoutButton from '../common/LogoutButton'
 import BackupButton from './BackupButton'
