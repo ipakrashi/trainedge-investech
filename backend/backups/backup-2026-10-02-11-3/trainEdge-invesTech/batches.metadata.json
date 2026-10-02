@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"batchName":{"$numberInt":"1"}},"name":"batchName_1","unique":true},{"v":{"$numberInt":"2"},"key":{"faculty":{"$numberInt":"1"}},"name":"faculty_1"}],"uuid":"f7e81bb756124e61991d58fa53c81aad","collectionName":"batches","type":"collection"}

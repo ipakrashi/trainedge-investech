@@ -1,0 +1,1 @@
+mongorestore --uri="mongodb+srv://ipakrashi:indr7744@trainedge-investech.uzdao4j.mongodb.net/trainEdge-invesTech?appName=trainEdge-invesTech" --drop "D:\wamp64\www\Practice\MERN\trainedge-investech\backend\backups\backup-2026-10-02-11-04\trainEdge-invesTech"

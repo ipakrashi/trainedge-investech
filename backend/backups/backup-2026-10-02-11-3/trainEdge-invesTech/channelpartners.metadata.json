@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"uniqueCode":{"$numberInt":"1"}},"name":"uniqueCode_1","unique":true}],"uuid":"91d9a00974c24441ac2bf039ca897a73","collectionName":"channelpartners","type":"collection"}

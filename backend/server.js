@@ -19,6 +19,8 @@ import evaluationRoutes from './routes/evaluationRoutes.js'
 import sessionLogRoutes from './routes/sessionLogRoutes.js'
 import demoRoutes from './routes/demoRoutes.js'
 import examRoutes from './routes/examRoutes.js'
+import systemRoutes from './routes/systemRoutes.js'
+import channelPartnerRoutes from './routes/channelPartnerRoutes.js'
 
 import cookieParser from 'cookie-parser'
 import path from 'path'
@@ -57,34 +59,36 @@ app.use('/api/evaluations', evaluationRoutes)
 app.use('/api/sessions', sessionLogRoutes)
 app.use('/api/demos', demoRoutes)
 app.use('/api/exams', examRoutes)
+app.use('/api/system', systemRoutes)
+app.use('/api/partners', channelPartnerRoutes)
 
 // ---- PRODUCTION ROUTING BLOCK ----
 if (process.env.NODE_ENV === 'production') {
-    const clientBuildPath = path.join(__dirname, '../client/dist')
-    app.use(express.static(clientBuildPath))
+	const clientBuildPath = path.join(__dirname, '../client/dist')
+	app.use(express.static(clientBuildPath))
 
-    app.get(/(.*)/, (req, res) => {
-        res.sendFile(path.join(clientBuildPath, 'index.html'))
-    })
+	app.get(/(.*)/, (req, res) => {
+		res.sendFile(path.join(clientBuildPath, 'index.html'))
+	})
 } else {
-    app.get('/', (req, res) => {
-        res.send('API is running...')
-    })
+	app.get('/', (req, res) => {
+		res.send('API is running...')
+	})
 }
 // ----------------------------------
 
 // Custom Error Handlers
 app.use((err, req, res, next) => {
-    const statusCode = res.statusCode === 200 ? 500 : res.statusCode
-    res.status(statusCode)
+	const statusCode = res.statusCode === 200 ? 500 : res.statusCode
+	res.status(statusCode)
 
-    res.json({
-        message: err.message,
-        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
-    })
+	res.json({
+		message: err.message,
+		stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+	})
 })
 
 // Server Start
 app.listen(PORT, () => {
-    console.log(`Server Started On Port : ${PORT}`)
+	console.log(`Server Started On Port : ${PORT}`)
 })
