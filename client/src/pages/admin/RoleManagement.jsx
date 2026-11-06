@@ -1,4 +1,4 @@
-mport { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import { FiPlus, FiShield } from 'react-icons/fi'
 import { SiSsrn } from 'react-icons/si'
