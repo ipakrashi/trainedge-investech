@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"student":{"$numberInt":"1"}},"name":"student_1","unique":true}],"uuid":"b15a5ea783d144eca01265fbf81c2ca4","collectionName":"partnerpayouts","type":"collection"}
